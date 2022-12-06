@@ -1,0 +1,3 @@
+[submodule "src/GLIP"]
+	path = src/GLIP
+	url = https://github.com/microsoft/GLIP/
