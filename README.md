@@ -100,4 +100,4 @@ Number of selected inferences:
 | Caption | 91    | 1130 |
 | Title   | 15    | 224  |
 
-GLIP + Caption has been used in 77.4% of images. A simple classification neural network achieve 90.27% accuracy in selecting the right inference, using as features the number of bounding max, their min, max and median size, and the number of words in the caption and the title.
+GLIP + Caption has been used in 77.4% of images. A simple classification neural network achieve 90.27% accuracy in selecting the right inference, using as features the number of bounding box, the max, their min, max and median area of bounding boxes and the number of words in the caption and the title.
