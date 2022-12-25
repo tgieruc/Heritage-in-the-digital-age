@@ -1,6 +1,6 @@
 <h1 align="center">Heritage in the digital age</h1>
-<h3 align="center"><i>Semester Project @ CVlab &amp; EPFL+ECAL lab </i></h3>
-<h4 align="center"><a href="https://tgieruc.github.io/Heritage-in-the-digital-age/">Visit our Website for the Data Story!</a></h4>
+<h3 align="center"><i>Semester Project @ CVlab &amp; EPFL+ECAL Lab </i></h3>
+<h4 align="center"><a href="https://tgieruc.github.io/Heritage-in-the-digital-age/">Visit our Website for the Gallery!</a></h4>
 
 <br>
 
