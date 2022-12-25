@@ -1,0 +1,18 @@
+# Setup
+title: [BCUFR]
+description: [A phrase-grounding segmentation pipeline for historical images]
+# theme: jekyll-theme-awesome
+# theme: jekyll-theme-primer
+remote_theme: pages-themes/cayman@v0.2.0
+plugins:
+- jekyll-remote-theme # add this line to the plugins list if you already have one
+
+markdown:           kramdown
+kramdown:
+    math_engine:    katex
+
+navigation:
+  name_over_title: true
+  strip_par: true
+  sanitize: true
+  h_max: 3
