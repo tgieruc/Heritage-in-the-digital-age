@@ -25,7 +25,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#157878">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="stylesheet" href="/assets/css/style.css?v=c84da844a53e710408302cf7480f031b302609b3">
+    <link rel="stylesheet" href="/assets/css/style.css?v=0bb92401c789207051c4315562bfb71a4c1da3a2">
     <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
 
 <!-- Setup Google Analytics -->
@@ -73,12 +73,13 @@
 </head>
 
 <h2 id="introduction">Introduction</h2>
-<p>Many institutions, such as libraries and museums, have began to digitize their collections, but most of the use of those images have been limited to remote access and research tools. This project aims to explore the potential for the valorization of these digitized heritages, to create a more interesting, interractive and fun way to explore the collections, by augmenting the images with the use of state-of-the-art computer vision and natural language processing techniques.</p>
 
-<p>This project is part of the colaboration between the EPFL+ECAL Lab and the <a href="https://www.fr.ch/bcu">Cantonal University Library of the Canton of Fribourg (BCUFR)</a>. I will be using a dataset from the BCU, consisting of 2’216 pictures from 1870 to 2003, with their title in French and a AI-generated alternative caption. These captions have been generated using an image-captionning pipeline, designed by Chenkai Wang. The pipeline consists of two main steps: image captioning with CLIP and GPT-2 and entity discovery and linking to detect and pair entities.</p>
+<p>Many institutions, such as libraries and museums, have begun to digitize their collections in order to make them more accessible to a wider audience. However, the use of these digitized images has typically been limited to remote access and research tools. This projects aims to explore the potential for the valorization of these digitized heritages by augmenting the images with the use of state-of-the-art computer vision and natural language processing techniques.</p>
+
+<p>This project is part of a collaboration between the <a href="https://epfl-ecal-lab.ch/">EPFL+ECAL Lab</a> and the <a href="https://www.fr.ch/bcu">Cantonal University Library of the Canton of Fribourg (BCUFR)</a>. The dataset used is from the BCUFR, consists of 2,216 pictures from 1870 to 2003, with AI-generated captions and titles in French. The captions have been generated using an image captioning pipeline designed by Chenkai Wang, which consists of two main steps: image captioning with <a href="https://openai.com/blog/clip/">CLIP</a> and <a href="https://huggingface.co/gpt2">GPT-2</a> and entity discovery and linking to detect and pair entities.</p>
 
 <h2 id="the-pipeline">The pipeline</h2>
-<p>Our pipeline consists of six steps:</p>
+<p>The pipeline consists of six steps. It takes as input an image with its title in French and an AI-generated alternative caption in English.</p>
 
 <ol>
   <li>Translating the titles of images from French to English using a pretrained machine learning model</li>
@@ -89,33 +90,34 @@
   <li>Segmenting the detected objects in the images</li>
 </ol>
 
+<p><img src="/images/pipeline.png" alt="Pipeline" class="img-responsive" /></p>
+
 <h3 id="translating-the-titles-of-images">Translating the titles of images</h3>
-<p>As the phrase grounding models were trained on English captions, we need to translate the titles of the images from French to English. This is done using a pretrained machine learning model, <a href="https://huggingface.co/Helsinki-NLP/opus-mt-fr-en">MarianMT</a>, which is a multilingual machine translation model trained on the <a href="https://opus.nlpl.eu/">OPUS</a> corpus.</p>
+<p>Since the phrase grounding models selected were trained on English captions, the titles of the images need to be translated from French to English. A pretrained machine learning model, <a href="https://huggingface.co/Helsinki-NLP/opus-mt-fr-en">MarianMT</a>, which is a multilingual machine translation model trained on the on the <a href="https://opus.nlpl.eu/">OPUS</a> corpus, is used for this purpose.</p>
 
 <p><img src="/images/1_translation.png" alt="Translation" class="img-responsive" /></p>
 
 <h3 id="preprocessing-the-captions-and-titles">Preprocessing the captions and titles</h3>
-<p>The captions and titles are preprocessed to prepare them for phrase grounding. This is done by removing punctuation, numbers and special characters, converting the text to lowercase and removing expressions such as “a picture of”, “a view of” and “a photograph of”. 
-As this dataset consists of images from Fribourg, I also removed all mentions of the city of Fribourg.</p>
+<p>The captions and titles are preprocessed in preparation for phrase grounding. This is achieved by converting the text to lowercase and removing expressions such as “a picture of”, “a view of” and “a photograph of”. As this dataset consists of images from Fribourg, there are many mentions of Fribourg in the title, which can potentially confuse the phrase grounding models. Therefore, it was decided to remove these mentions.</p>
 
 <p><img src="/images/2_preprocessing.png" alt="Preprocessing" class="img-responsive" /></p>
 
 <h3 id="phrase-grounding">Phrase Grounding</h3>
-<p>Phrase grounding consists in detecting the objects in an image that are mentioned in a caption. Two models were used for this task: <a href="https://arxiv.org/abs/2112.03857">GLIP</a> and <a href="https://arxiv.org/abs/2104.12763">MDETR</a> and inference was run on both the caption and the title for each image.</p>
+<p>Phrase grounding involves detecting the objects in an image that are mentioned in a caption. In this project, two state-of-the-art models were used for this task: <a href="https://arxiv.org/abs/2112.03857">GLIP</a> and <a href="https://arxiv.org/abs/2104.12763">MDETR</a>. Inference was run on both the caption and the title for each image.</p>
 
 <p><img src="/images/4_phrase_grounding.png" alt="PhraseGrounding" class="img-responsive" /></p>
 
 <h3 id="postprocessing-the-phrase-grounding-results">Postprocessing the phrase grounding results</h3>
-<p>Two steps were taken to postprocess the phrase grounding results: non-maximum suppression and fixing common error on labels.</p>
+<p>Two steps are taken to postprocess the phrase grounding results: non-maximum suppression and fixing common errors on labels.</p>
 
 <ul>
-  <li><a href="https://towardsdatascience.com/non-maximum-suppression-nms-93ce178e177c">Non-maximum suppression</a>: This step consists in removing bounding boxes that overlap too much with other bounding boxes. This is done to avoid having multiple bounding boxes for the same object.</li>
+  <li><a href="https://towardsdatascience.com/non-maximum-suppression-nms-93ce178e177c">Non-maximum suppression</a>: Both MDETR and GLIP tend to create several bounding boxes for an object. To address this, non-maximum suppression (NMS) is applied, a technique that removes bounding boxes that overlap too much with other bounding boxes. The standard NMS algorithm is used with a threshold of 0.5.</li>
 </ul>
 
 <p><img src="/images/5_nms.png" alt="NMS" class="img-responsive" /></p>
 
 <ul>
-  <li>Fixing the <em>group</em> label: The phrase grounding models tend to use the word <em>group</em> as a label, rather than the noun following. This is fixed by checking if the word <em>group</em> is followed by a noun and if it is, the label is changed to the noun.</li>
+  <li>Fixing the <em>group</em> label: The phrase grounding models tend to use the word “group” as a label, rather than the noun following it. This error is fixed by checking if the word “group” is followed by a noun, and if it is, the label is changed to the noun.</li>
 </ul>
 
 <p><img src="/images/5_group.png" alt="Group" class="img-responsive" /></p>
@@ -150,21 +152,19 @@ As this dataset consists of images from Fribourg, I also removed all mentions of
 </table>
 
 <h3 id="segmenting-the-detected-objects-in-the-images">Segmenting the detected objects in the images</h3>
+<p>In order to further augment the images, the detected objects are segmented in the images. The bounding boxes from the phrase grounding results are used to crop the objects and then segment them. Initially, GrabCut was chosen for this task due to its simplicity, but its performance was disappointing, especially on black and white images, which make up the majority of the dataset. As a result, a custom segmentation deep learning model was designed using PyTorch.</p>
+
 <h4 id="design-of-the-model">Design of the model</h4>
-<p>In order to further augment the images, the detected objects are segmented in the images. It would use the bounding boxes from the phrase grounding results to crop the objects and then segment them.</p>
-
-<p>This is done using the <a href="https://github.com/qubvel/segmentation_models.pytorch">Segmentation Models</a> library, which provides a wide range of pretrained segmentation models.</p>
-
-<p>The chosen architecture is a <a href="https://arxiv.org/abs/1505.04597">U-Net</a> with a <a href="https://arxiv.org/abs/1512.03385">ResNet34</a> encoder, pretrained on the <a href="https://www.image-net.org/index.php">Image-Net</a> dataset.</p>
+<p>The <a href="https://github.com/qubvel/segmentation_models.pytorch">Segmentation Models</a>  library was used to design the model, which provides a wide range of pretrained segmentation models. The chosen architecture is a  <a href="https://arxiv.org/abs/1505.04597">U-Net</a> with a <a href="https://arxiv.org/abs/1512.03385">ResNet34</a> encoder, pretrained on the <a href="https://www.image-net.org/index.php">Image-Net</a> dataset. This provides a good balance between inference speed and the quality of the segmentation.</p>
 
 <h4 id="fine-tuning">Fine-tuning</h4>
-<p>The model is fined-tuned on a subset of the  <a href="https://cocodataset.org/#home">COCO-2014</a> dataset, which consists of 50’000 images with bounding boxes and segmentation masks.</p>
+<p>The model was fine-tuned on a subset of the <a href="https://cocodataset.org/#home">COCO-2014</a> dataset, which consists of 5’000 images with bounding boxes and segmentation masks. The following process was used for fine-tuning the model:</p>
 
 <p>The process of fine-tuning the model is as follows:</p>
 <ul>
   <li>The image is resized to 352x352, normalized, converted to black and white and then turned into a tensor. The bounding box is used to create a mask of the object in the image.</li>
   <li>The image is multiplied by the mask to remove the background and is used as the input to the model.</li>
-  <li>The segmentation ground-truth is used as the target for the model.</li>
+  <li>The image is used as the input to the model, and the segmentation ground truth is used as the target for the model.</li>
 </ul>
 
 <p>The model is trained for 100 epochs, using the <a href="https://arxiv.org/abs/1412.6980">Adam</a> optimizer and the <a href="https://arxiv.org/abs/1707.03237">Dice Loss</a> as the loss function.</p>
@@ -174,31 +174,89 @@ As this dataset consists of images from Fribourg, I also removed all mentions of
 <h4 id="evaluation">Evaluation</h4>
 <p>The model is evaluated on a <a href="https://cocodataset.org/#home">COCO-2014</a> validation subset, which consists of 1’000 images with bounding boxes and segmentation masks. It achieves a mean IoU of 0.77, a mean precision of 0.82 and a mean recall of 0.91.</p>
 <h4 id="inference">Inference</h4>
-<p>The model is run on the images to segment the detected objects, using the bounding boxes from the phrase grounding results. The preprocessing is slightly different from the fine-tuning process: the image is resized to 352x352 with padding, normalized and then turned into a tensor. After the inference, the segmentation is multiplied by the mask to remove any noise and is resized to the original size of the image.</p>
+<p>The model was run on the images to segment the detected objects using the bounding boxes from the phrase grounding results. The preprocessing for this step was slightly different from the fine-tuning process: the image was resized to 352x352 with padding, normalized, and then turned into a tensor. After the inference, the segmentation was multiplied by the mask to remove any noise and was resized to the original size of the image.</p>
+
+<p><img src="/images/7_inference.png" alt="Inference" class="img-responsive" /></p>
 
 <p><img src="/images/7_example.png" alt="Inference" class="img-responsive" /></p>
 
 <h2 id="analysis-of-the-results">Analysis of the results</h2>
 <h3 id="segmentation">Segmentation</h3>
-<p>The segmentation model performs better on single objects than on groups of objects, as shown in the example below, where the “children” and “students” are better segmented on the left image than on the right image.</p>
+<p>The segmentation model performs better on single objects than on groups of objects, as shown in the example below, where the “children” and “students” are better segmented on the right image than on the left.</p>
 
 <p><img src="/images/8_analysis.png" alt="Segmentation" class="img-responsive" /></p>
 
-<p>We can compare the number of bounding boxes and their median area between GLIP and MDETR, in order to see which model performs better on phrase grounding:</p>
+<p>The number of bounding boxes and their median area were compared between GLIP and MDETR to see which model performs better on phrase grounding.</p>
 
 <p><img src="/images/num_bbox_median_bbox_area.png" alt="BBoxes" class="img-responsive" /></p>
 
-<p>GLIP tends to have a higher number of bounding boxes per images than MDETR, and their median area is smaller. This means that GLIP has a tendency to detect each instance of an label, while MDETR tends to detect the whole group of objects. This would make GLIP better for segmentation, as the segmentation model perform better on single objects than on groups of objects.</p>
+<p>This shows that GLIP tends to output more bounding boxes than MDETR, and they also tend to be smaller. This suggests that GLIP is a more suitable option, as its bounding boxes would likely lead to better segmentation than MDETR.</p>
 
 <h3 id="autmatic-selection-of-the-best-phrase-grounding-results">Autmatic selection of the best phrase grounding results</h3>
-<p>In order to work on bigger datasets, the automatic selection of the best phrase grounding results is necessary. The GUI used to select the best phrase grounding results was designed for a few images, but it would be too time-consuming to use it on a bigger dataset.</p>
+<p>Manually selecting the best inference for each image in a dataset can be time-consuming, especially when dealing with large datasets. To address this issue, several different methods for automatic classification of the best inference were tried.</p>
 
-<p>The autmatic selection of the best phrase grounding results is done using a simple classifier neural netowrk, based on the number of words in the caption and the title, the number of bounding boxes as well as their min, max and median area, for each combination of [caption, title] and [GLIP, MDETR].</p>
+<p>Both a random forest classifier and a MLP classifier were unable to perform better than always selecting the most popular combination. They were trained using the statistics collected during manual selection as features, such as the number of words in the caption and title, as well as the number of bounding boxes and their minimum, maximum, and median area for each combination of [caption, title] and [GLIP, MDETR].</p>
 
-<p>The model is trained on 1’095 images and tested on 365 different images. It achieves an accuracy of 90.03% on the test set, whereas always selecting the most-selected combination (GLIP + caption) would only achieve an accuracy of 77.39%.</p>
+<p><a href="https://huggingface.co/distilbert-base-uncased">DistilBERT-base-uncased</a> with HuggingFace was used for two different approaches:</p>
+<ul>
+  <li>Given the caption and the title, the model outputs which one is the best. It was trained on the manual selection data. However, it tends to always prefer the captions over the titles. The model can be found on <a href="https://huggingface.co/tgieruc/Heritage-in-the-Digital-Age-expression-comparison">HuggingFace</a></li>
+  <li>Given an expression, it ranks it between 0 and 9. Over 400 expressions, extracted randomly from the titles and captions, were manually rated as training and test data. The model was trained for 15 epochs using the Adam optimizer. Overall, the model predicts with an accuracy of 81\% the grade with an error of 1 or less. This model should be used by giving a rating to every caption and title, and then selecting the one with the highest grade. For ease of use, the <a href="https://huggingface.co/tgieruc/Heritage-in-Digital-Age-distilbert-base-uncased-expression-rating">model</a> and a <a href="https://huggingface.co/tgieruc/Heritage-in-the-Digital-Age-expression-ranking-pipeline">pipeline</a> have been uploaded on HuggingFace.</li>
+</ul>
+<style type="text/css">
+
+.tg  {border-collapse:collapse;border-spacing:0;margin:0px auto;}
+.tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+  overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+  font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg .tg-c3ow{border-color:inherit;text-align:center;vertical-align:top}
+.tg .tg-0pky{border-color:inherit;text-align:left;vertical-align:top}
+.tg {
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
+<table class="tg">
+<thead>
+  <tr>
+    <th class="tg-c3ow" colspan="9">Absolute difference with ground-truth </th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td class="tg-0pky">0</td>
+    <td class="tg-0pky">1</td>
+    <td class="tg-0pky">2</td>
+    <td class="tg-0pky">3</td>
+    <td class="tg-0pky">4</td>
+    <td class="tg-0pky">5</td>
+    <td class="tg-0pky">6</td>
+    <td class="tg-0pky">7</td>
+    <td class="tg-0pky">8</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">66.5%</td>
+    <td class="tg-0pky">15.9%</td>
+    <td class="tg-0pky">6.6%</td>
+    <td class="tg-0pky">3.4%</td>
+    <td class="tg-0pky">2.4%</td>
+    <td class="tg-0pky">2.2%</td>
+    <td class="tg-0pky">0.97%</td>
+    <td class="tg-0pky">1.4%</td>
+    <td class="tg-0pky">0.5%</td>
+  </tr>
+</tbody>
+</table>
+
+<p><img src="/images/grade_distribution.png" alt="grade_distribution" class="img-responsive" /></p>
 
 <h1 id="gallery">Gallery</h1>
 <div class="gallery">
+  
+    
+  
+    
   
     
   
@@ -13268,6 +13326,10 @@ As this dataset consists of images from Fribourg, I also removed all mentions of
         <img src="/images/gallery/VIBU_00823_2k_324w.jpg" alt="VIBU_00823_2k_324w.jpg" />
         <div class="caption"><span style="color: #000000">photograph of a group of </span><span style="color: #d85218">people</span><span style="color: #000000"> working in </span><span style="color: #0071bc">a field</span><span style="color: #000000">.</span></div>
       </div>
+    
+  
+    
+  
     
   
     
@@ -13345,6 +13407,10 @@ As this dataset consists of images from Fribourg, I also removed all mentions of
     
   
     
+  
+    
+  
+    
       
       
       <div class="gallery-item">
@@ -26392,6 +26458,10 @@ As this dataset consists of images from Fribourg, I also removed all mentions of
         <img src="/images/gallery/VIBU_00823_2k_324w.jpg" alt="VIBU_00823_2k_324w.jpg" />
         <div class="caption"><span style="color: #000000">photograph of a group of </span><span style="color: #d85218">people</span><span style="color: #000000"> working in </span><span style="color: #0071bc">a field</span><span style="color: #000000">.</span></div>
       </div>
+    
+  
+    
+  
     
   
     
