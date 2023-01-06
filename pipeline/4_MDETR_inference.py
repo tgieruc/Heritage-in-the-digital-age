@@ -3,7 +3,7 @@ import pickle
 import re
 from collections import defaultdict
 from os.path import join
-
+import os
 import numpy as np
 import torch
 import torchvision.transforms as T
@@ -26,22 +26,30 @@ def rescale_bboxes(out_bbox, size):
     return b
 
 def inference(row, glip_demo, transform, args):
-    PIL_image = Image(open(join(args.image_directory, row['filename'])))
+    if row['filename'] is None:
+      return []
+    filename = join(args.image_directory, row['filename'])
+
+    # if no image is found, skip
+    if not os.path.exists(filename):
+        return []
+        
+    PIL_image = Image.open(filename).convert('RGB')    
     expression = row[args.expression_column]
 
     # mean-std normalize the input image (batch-size: 1)
     img = transform(PIL_image).unsqueeze(0).cuda()
 
     # propagate through the model
-    memory_cache = model(img, [expression], encode_and_save=True)
-    outputs = model(img, [expression], encode_and_save=False, memory_cache=memory_cache)
+    memory_cache = glip_demo(img, [expression], encode_and_save=True)
+    outputs = glip_demo(img, [expression], encode_and_save=False, memory_cache=memory_cache)
 
     # keep only predictions with 0.7+ confidence
     probas = 1 - outputs['pred_logits'].softmax(-1)[0, :, -1].cpu()
     keep = (probas > 0.7).cpu()
 
     # convert boxes from [0; 1] to image scales
-    bboxes_scaled = rescale_bboxes(outputs['pred_boxes'].cpu()[0, keep], im.size)
+    bboxes_scaled = rescale_bboxes(outputs['pred_boxes'].cpu()[0, keep], PIL_image.size)
 
     # Extract the text spans predicted by each box
     positive_tokens = (outputs["pred_logits"].cpu()[0, keep].softmax(-1) > 0.1).nonzero().tolist()
@@ -92,7 +100,7 @@ if __name__ == '__main__':
     data = pickle.load(open(args.input_file, 'rb'))
 
     # Inference
-    data[args.inference_column] = data.progress_apply(lambda row: inference(row, model, args), axis=1)
+    data[args.inference_column] = data.progress_apply(lambda row: inference(row, model, transform, args), axis=1)
 
     # Save the data
     pickle.dump(data, open(args.output_file, 'wb'))

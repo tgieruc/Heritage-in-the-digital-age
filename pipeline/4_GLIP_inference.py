@@ -4,13 +4,22 @@ from tqdm import tqdm
 from PIL import Image
 import numpy as np
 from os.path import join
+import os 
 
 from maskrcnn_benchmark.config import cfg
 from maskrcnn_benchmark.engine.predictor_glip import GLIPDemo
 
 
 def inference(row, glip_demo, args):
-    PIL_image = Image(open(join(args.image_directory, row['filename'])))
+    if row['filename'] is None:
+        return []
+
+    filename = join(args.image_directory, row['filename'])
+
+    if not os.path.exists(filename):
+        return []
+
+    PIL_image = Image.open(filename).convert('RGB')    
     image = np.array(PIL_image)[:, :, [2, 1, 0]]
     expression = row[args.expression_column]
     results, predictions = glip_demo.run_on_web_image(image, expression)
