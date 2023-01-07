@@ -20,13 +20,6 @@ The pipeline consists of six steps and takes an image with its French title and 
 5. Select the best phrase grounding results using a GUI.
 6. Segment detected objects in the images.
 
-## Requirements
-
-This project requires Python 3.6 or higher, along with the following libraries:
-
-- PyTorch 1.7.0 or higher
-- Hugging Face Transformers 4.6.0 or higher
-- OpenCV 4.5.0 or higher
 
 ## Usage
 
