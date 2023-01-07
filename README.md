@@ -16,8 +16,8 @@ The pipeline consists of six steps and takes an image with its French title and 
 1. Translate French titles to English using a pretrained machine translation model (MarianMT).
 2. Preprocess captions and titles for phrase grounding.
 3. Run phrase grounding on the dataset using two state-of-the-art models (GLIP and MDETR).
-4. Postprocess phrase grounding results with non-maximum suppression and label correction.
-5. Select the best phrase grounding results using a GUI.
+4. Postprocess phrase grounding results with non-maximum suppression.
+5. Select the best phrase grounding results manually using a GUI or automatically.
 6. Segment detected objects in the images.
 
 
