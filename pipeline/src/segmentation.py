@@ -13,9 +13,9 @@ from matplotlib.patches import Polygon
 from PIL import Image
 from skimage.measure import find_contours
 
+
 # colors for visualization
-# COLORS = [[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
-COLORS = [[1,0,0], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
+COLORS = [[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
           [0.494, 0.184, 0.556], [0.466, 0.674, 0.188], [0.301, 0.745, 0.933], [0,0,0]]
 
 
@@ -417,3 +417,27 @@ class SegmentationDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.df_dataset)
+
+def colored_text_to_html(colored_text):
+    # Get the text and color data for the image
+    text = colored_text["text"]
+    colors = colored_text["colors"]
+
+    # Create an empty list to store the HTML text
+    html_text = []
+
+    # Iterate over the text and color data
+    for i in range(len(text)):
+        # Convert the RGB color values to hexadecimal
+        color = "#{:02x}{:02x}{:02x}".format(
+            int(colors[i][0] * 255),
+            int(colors[i][1] * 255),
+            int(colors[i][2] * 255)
+        )
+
+        # Add the text and color to the HTML text list
+        html_text.append(f'<span style="color: {color}">{text[i]}</span>')
+
+    # Join the HTML text list into a single string
+    html_text = "".join(html_text)
+    return html_text

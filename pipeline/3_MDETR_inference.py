@@ -36,7 +36,8 @@ def inference(row, glip_demo, transform, args):
         
     PIL_image = Image.open(filename).convert('RGB')    
     expression = row[args.expression_column]
-
+    if len(expression) == 0:
+        return []
     # mean-std normalize the input image (batch-size: 1)
     img = transform(PIL_image).unsqueeze(0).cuda()
 
@@ -64,14 +65,15 @@ def inference(row, glip_demo, transform, args):
                 span[item].append(memory_cache["tokenized"].token_to_word(0, pos))
             else:
                 span[item] = [memory_cache["tokenized"].token_to_word(0, pos)]
-        for elem in span:
-            for span_id in list(set(span[elem])):
-                if span_id is not None:
-                    predicted_spans [elem] += " " + caption_word[min(span_id, len(caption_word) - 1)]
+    for elem in span:
+        for span_id in list(set(span[elem])):
+            if span_id is not None:
+                predicted_spans [elem] += " " + caption_word[min(span_id, len(caption_word) - 1)]
 
 
     labels = [predicted_spans [k] for k in sorted(list(predicted_spans .keys()))]
-    return [probas[keep], bboxes_scaled, labels]
+    return (probas[keep], bboxes_scaled, labels)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

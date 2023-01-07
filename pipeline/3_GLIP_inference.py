@@ -22,10 +22,26 @@ def inference(row, glip_demo, args):
     PIL_image = Image.open(filename).convert('RGB')    
     image = np.array(PIL_image)[:, :, [2, 1, 0]]
     expression = row[args.expression_column]
-    results, predictions = glip_demo.run_on_web_image(image, expression)
-    labels = [predictions[k - 1] if k < len(predictions) else predictions[len(predictions) - 1] for k in
-            results.get_field('labels')]
-    return [results.get_field('scores'), results.bbox, labels]
+        
+    if len(expression) > 60:
+        expression = expression[:60]
+    if len(expression) == 0:
+        return []
+
+    _, results = glip_demo.run_on_web_image(image, expression)
+
+    return postprocess([results, glip_demo.entities])
+
+def postprocess(glip_array):
+    """
+    Transforms a GLIP array into a MDETR-format array
+    :param glip_array: array of inference of GLIP
+    :return: the array in a MDETR-format
+    """
+
+    caption = [glip_array[1][k - 1] if k < len(glip_array[1]) else glip_array[1][len(glip_array[1]) - 1] for k in
+                glip_array[0].get_field('labels')]
+    return [glip_array[0].get_field('scores'), glip_array[0].bbox, caption]
 
 
 if __name__ == '__main__':
@@ -34,6 +50,7 @@ if __name__ == '__main__':
     parser.add_argument("--output_file", type=str, help="Path to the output file")
     parser.add_argument("--expression_column", type=str, help="Column to translate")
     parser.add_argument("--image_directory", type=str, help="Path to the image directory")
+    parser.add_argument("--inference_column", type=str, help="Column to store the inference")
     parser.add_argument("--config_file", type=str, help="Path to the config file")
     parser.add_argument("--weights_file", type=str, help="Path to the weights file")
     args = parser.parse_args()
@@ -59,7 +76,7 @@ if __name__ == '__main__':
     data = pickle.load(open(args.input_file, 'rb'))
     
     # Inference
-    data['inference'] = data.progress_apply(lambda row: inference(row, glip_demo, args), axis=1)
+    data[args.inference_column] = data.progress_apply(lambda row: inference(row, glip_demo, args), axis=1)
 
     # Save the data
     with open(args.output_file, "wb") as f:
