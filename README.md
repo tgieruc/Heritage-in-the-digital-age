@@ -48,6 +48,7 @@ python pipeline/3_MDETR_inference.py --input_file data/2_preprocessed.pkl --outp
 
 python pipeline/3_MDETR_inference.py --input_file temp.pkl --output_file temp.pkl --expression_column title_en_preprocessed --inference_column MDETR_title --image_directory data/BCU_database/03_resized 
 
+
 wget https://penzhanwu2bbs.blob.core.windows.net/data/GLIPv1_Open/models/glip_large_model.pth -O model/glip_large_model.pth
 
 
