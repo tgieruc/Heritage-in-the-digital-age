@@ -32,8 +32,8 @@ This project requires Python 3.6 or higher, along with the following libraries:
 
 To run the pipeline, follow these steps:
 
-1. Clone the repository and navigate to the directory.
-2. Download the dataset from the BCUFR website and place it in the `data` directory.
+1. Clone the repository with ```git clone --recurse-submodules https://github.com/tgieruc/Heritage-in-the-digital-age``` and navigate to the directory.
+2. Download the dataset from the BCUFR website and place it in the `data` directory. Download the weight file for the segmentation model and place it in the `model` directory.
 3. Run the following command to translate the titles:
 ```bash
 python pipeline/1_translate.py --input_file data/BCU_database/original_data.pkl --column title --output_file data/1_translation.pkl --device cuda
