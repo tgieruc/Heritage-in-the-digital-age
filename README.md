@@ -18,7 +18,8 @@ The pipeline consists of six steps and takes an image with its French title and 
 3. Run phrase grounding on the dataset using two state-of-the-art models (GLIP and MDETR).
 4. Postprocess phrase grounding results with non-maximum suppression.
 5. Select the best phrase grounding results manually using a GUI or automatically.
-6. Segment detected objects in the images.
+6. Segment detected objects in the images. A demo of the segmentation process can be found here [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/tgieruc/Heritage-in-the-digital-age/blob/main/pipeline/notebooks/segmentation_demo.ipynb)!
+
 
 
 ## Usage
