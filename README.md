@@ -72,3 +72,11 @@ python pipeline/5_manual_selection_best_phrase_grounding.py --input_file data/4_
 python pipeline/6_segmentation.py --input_file data/5_automatic.pkl --output_dir data/6_segmentation --image_dir data/BCU_database/03_resized --selection_column automatic_selection --save_fig --save_segmentation_pickle --model_path model/model_segmentation.pth --save_colored_text_array --save_colored_text_html --device cuda
 ```
 
+## Acknowledgements
+
+This project uses the following projects:
+* The caption generation pipeline: [Chenkai Wang](https://github.com/cnWangChenkai)
+* The English to French translation model: [MarianMT](https://huggingface.co/Helsinki-NLP/opus-mt-fr-en)
+* One of the two phrase-grounding model used: [GLIP](https://github.com/microsoft/GLIP)
+* The other phrase-grounding model: [MDETR](https://github.com/ashkamath/mdetr)
+* The NLP model for ranking the expressions: [DistilBERT](https://arxiv.org/abs/1910.01108)
