@@ -98,5 +98,5 @@ if __name__ == '__main__':
     for key in keys:
         data[key] = data['segmentation_output'].apply(lambda x: x[key] if key in x else None)
     
-    with open(join(args.output_dir, '7_segmentation_output.pkl'), 'wb') as f:
+    with open(join(args.output_dir, '6_segmentation_output.pkl'), 'wb') as f:
         pickle.dump(data, f)
