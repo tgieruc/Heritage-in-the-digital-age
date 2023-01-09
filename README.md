@@ -1,7 +1,7 @@
 <h1 align="center">Heritage in the digital age</h1>
 <h3 align="center"><em>A Step-by-Step Guide to Augmenting Digitized Historical Images </em></h3>
 <h4 align="center"><i>Semester Project @ CVlab &amp; EPFL+ECAL Lab </i></h4>
-<h4 align="center"><a href="https://tgieruc.github.io/Heritage-in-the-digital-age/">Visit the Website for the gallery and an explanation of project!</a></h4>
+<h4 align="center"><a href="https://tgieruc.github.io/Heritage-in-the-digital-age/">Visit the Website for the gallery and an explanation of the project!</a></h4>
 
 <br>
 
