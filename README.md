@@ -5,6 +5,8 @@
 
 <br>
 
+ A demo of the whole pipeline is available on Google Colab [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/tgieruc/Heritage-in-the-digital-age/blob/main/demo_pipeline.ipynb)
+
 ---
 ## Introduction
 
@@ -54,7 +56,7 @@ python pipeline/3_GLIP_inference.py --input_file temp.pkl --output_file data/3_p
 
 6. Run the following command to postprocess the phrase grounding results:
 ```bash
-python pipeline/4_apply_nms.py --input_file data/3_phrase_grounding.pkl --output_file data/4_postprocess.py --columns_to_process GLIP_caption GLIP_title MDETR_caption MDETR_title
+python pipeline/4_apply_nms.py --input_file data/3_phrase_grounding.pkl --output_file data/4_postprocess.pkl --columns_to_process GLIP_caption GLIP_title MDETR_caption MDETR_title
 ```
 
 
