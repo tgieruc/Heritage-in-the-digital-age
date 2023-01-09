@@ -14,6 +14,8 @@ parser.add_argument("--columns_to_process",  nargs='+', help="Columns to process
 args = parser.parse_args()
 
 def removeprefix(string):
+    if string is None:
+        return None
     if string.startswith(' '):
         return string[1:]
 
