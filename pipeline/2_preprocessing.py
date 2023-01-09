@@ -44,7 +44,7 @@ if __name__ == '__main__':
     images = list(filter(lambda k: args.quality in k, images))
 
     # Link the id to the files
-    data['filename'] = data[args.id_column].apply(lambda x:  (list(filter(lambda k: x.lower() in k.lower(), images)))[0].removeprefix(args.image_directory + '/') if len(list(filter(lambda k: x.lower() in k.lower(), images))) > 0 else None)
+    data['filename'] = data[args.id_column].apply(lambda x:  (list(filter(lambda k: x.lower() in k.lower(), images)))[0].replace(args.image_directory + '/','') if len(list(filter(lambda k: x.lower() in k.lower(), images))) > 0 else None)
 
     # preprocessing of titles and captions
     for column in args.columns_to_preprocess:
