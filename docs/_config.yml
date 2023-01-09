@@ -1,6 +1,6 @@
 # Setup
 title: [BCUFR]
-description: [A phrase-grounding segmentation pipeline for historical images]
+description: [A Step-by-Step Guide to Augmenting Digitized Historical Images]
 # theme: jekyll-theme-awesome
 # theme: jekyll-theme-primer
 remote_theme: pages-themes/cayman@v0.2.0
@@ -12,7 +12,7 @@ kramdown:
     math_engine:    katex
 
 navigation:
-  name_over_title: true
+  name_over_title: false
   strip_par: true
   sanitize: true
   h_max: 3
