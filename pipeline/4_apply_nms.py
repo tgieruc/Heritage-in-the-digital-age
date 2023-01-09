@@ -13,6 +13,10 @@ parser.add_argument("--columns_to_process",  nargs='+', help="Columns to process
 
 args = parser.parse_args()
 
+def removeprefix(string):
+    if string.startswith(' '):
+        return string[1:]
+
 def labelwise_nms(segmentation_results, iou_th=0.2):
     if len(segmentation_results) == 0:
         return segmentation_results
@@ -36,7 +40,7 @@ def labelwise_nms(segmentation_results, iou_th=0.2):
         scores += (segmentation_results[0][idx_][idx_tokeep])
         boxes += (segmentation_results[1][idx_][idx_tokeep])
         captions += (
-            [segmentation_results[2][i].removeprefix(' ') for i in torch.index_select(torch.tensor(idx_), 0, idx_tokeep)])
+            [removeprefix(segmentation_results[2][i]) for i in torch.index_select(torch.tensor(idx_), 0, idx_tokeep)])
 
     # Make the new segmentation
     segmentation_nms = []
@@ -59,7 +63,7 @@ def global_nms(segmentation_results, iou_th=0.9):
     captions = []
     scores += (segmentation_results[0][idx_to_keep])
     boxes += (segmentation_results[1][idx_to_keep])
-    captions += ([segmentation_results[2][i].removeprefix(' ') for i in idx_to_keep])
+    captions += ([removeprefix(segmentation_results[2][i]) for i in idx_to_keep])
 
     # Make the new segmentation
     segmentation_nms = []
