@@ -109,12 +109,7 @@ The images are stored in the `data/BCU_database/images/` folder and are in two r
 
 ### 1. Translation
 The following command is a Python script that translates the values in a specified column of a dataset stored in a pickle file:
-<style>
-pre {
-  width: 100%;
-  overflow-x: auto;
-}
-</style>
+
 <pre><code>python pipeline/1_translate.py --input_file data/BCU_database/original_data.pkl --column title --output_file data/1_translation.pkl --device cuda
 </code></pre>
 
