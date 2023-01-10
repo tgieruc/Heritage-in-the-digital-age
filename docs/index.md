@@ -44,8 +44,8 @@ The pipeline consists of six steps. It takes as input an image with its title in
 1. Translating the titles of images from French to English using a pretrained machine learning model
 2. Preprocessing the captions and titles to prepare them for phrase grounding
 3. Running inference on the dataset using two state-of-the-art phrase grounding models: GLIP and MDETR
-4. Postprocessing the phrase grounding results to correct for common errors
-5. Selecting the best phrase grounding results using a user-friendly GUI
+4. Postprocessing the phrase grounding results with Non-Maximum Suppression 
+5. Selecting the best phrase grounding results using a user-friendly GUI or an automatic selection method
 6. Segmenting the detected objects in the images 
 
 ![Pipeline](images/pipeline.png){:class="img-responsive"}
@@ -56,27 +56,35 @@ Since the phrase grounding models selected were trained on English captions, the
 ![Translation](images/1_translation.png){:class="img-responsive"}
 
 ### Preprocessing the captions and titles
-The captions and titles are preprocessed in preparation for phrase grounding. This is achieved by converting the text to lowercase and removing expressions such as "a picture of", "a view of" and "a photograph of". As this dataset consists of images from Fribourg, there are many mentions of Fribourg in the title, which can potentially confuse the phrase grounding models. Therefore, it was decided to remove these mentions.
+The captions and titles are preprocessed in preparation for phrase ground-
+ing. This is achieved by converting the text to lowercase and removing the
+following expressions: ”portrait of”, ”photograph of” and ”black and white
+photo of”.
+
+As this dataset consists of images from Fribourg, there are many mentions
+of Fribourg in the title, which can potentially confuse the phrase grounding
+models. Therefore, the following mentions were removed: ”canton de fri-
+bourg”, ”of fribourg”, ”(fribourg)”, ”[fribourg]” and ”fribourg”.
+
+The expressions ”group of” and ”a group of” have also been removed, as
+the phrase grounding algorithms would often give the label ”group” rather
+than the subject of the group. For example, with the expression ”a group of
+musicians”, the phrase grounding algorithm would choose the label ”group”
+rather than ”musicians”.
 
 ![Preprocessing](images/2_preprocessing.png){:class="img-responsive"}
 
 ### Phrase Grounding
-Phrase grounding involves detecting the objects in an image that are mentioned in a caption. In this project, two state-of-the-art models were used for this task: [GLIP](https://arxiv.org/abs/2112.03857) and [MDETR](https://arxiv.org/abs/2104.12763). Inference was run on both the caption and the title for each image.
+Phrase grounding involves detecting the objects in an image that are mentioned in a caption. In this project, two state-of-the-art models were used for this task: [GLIP](https://arxiv.org/abs/2112.03857) (GLIP-L - 430M parameters) and [MDETR](https://arxiv.org/abs/2104.12763) (EfficientNet-B5 - 169M parameters). Inference was run on both the caption and the title for each image.
 
 
 ![PhraseGrounding](images/4_phrase_grounding.png){:class="img-responsive"}
 
 ### Postprocessing the phrase grounding results
-Two steps are taken to postprocess the phrase grounding results: non-maximum suppression and fixing common errors on labels.
-
-
-* [Non-maximum suppression](https://towardsdatascience.com/non-maximum-suppression-nms-93ce178e177c): Both MDETR and GLIP tend to create several bounding boxes for an object. To address this, non-maximum suppression (NMS) is applied, a technique that removes bounding boxes that overlap too much with other bounding boxes. The standard NMS algorithm is used with a threshold of 0.5.
+Both MDETR and GLIP tend to create several bounding boxes for an object. To address this, [non-maximum suppression (NMS)](https://towardsdatascience.com/non-maximum-suppression-nms-93ce178e177c) is applied, a technique that removes bounding boxes that overlap too much with other bounding boxes. The standard NMS algorithm is used twice: once label-wise with a threshold of 0.5, and once global with a threshold of 0.9.
 
 ![NMS](images/5_nms.png){:class="img-responsive"}
 
-* Fixing the *group* label: The phrase grounding models tend to use the word "group" as a label, rather than the noun following it. This error is fixed by checking if the word "group" is followed by a noun, and if it is, the label is changed to the noun. 
-
-![Group](images/5_group.png){:class="img-responsive"}
 
 ### Selecting the best phrase grounding results
 Each image has four phrase grounding results: two from the caption and two from the title, as it has been run on GLIP and MDETR. The best phrase grounding results are selected using a user-friendly GUI. 
@@ -91,7 +99,7 @@ The most selected combination is GLIP on the caption.
 | Title   | 15    | 224  |
 
 ### Segmenting the detected objects in the images
-In order to further augment the images, the detected objects are segmented in the images. The bounding boxes from the phrase grounding results are used to crop the objects and then segment them. Initially, GrabCut was chosen for this task due to its simplicity, but its performance was disappointing, especially on black and white images, which make up the majority of the dataset. As a result, a custom segmentation deep learning model was designed using PyTorch.
+In order to further augment the images, the detected objects are segmented in the images. The bounding boxes from the phrase grounding results are used to crop the objects and then segment them. Initially, GrabCut was chosen for this task due to its simplicity, but its performance was disappointing, especially on black and white images, which make up the majority of the dataset. GrabCut is based on color information to distinguish between foreground and background pixels. In a black and white image, there is only one color channel, so there is less information available for GrabCut to use in making segmentation decisions. This led to designing a custom class-agnostic segmentation model on PyTorch.
 
 #### Design of the model
 The [Segmentation Models](https://github.com/qubvel/segmentation_models.pytorch)  library was used to design the model, which provides a wide range of pretrained segmentation models. The chosen architecture is a  [U-Net](https://arxiv.org/abs/1505.04597) with a [ResNet34](https://arxiv.org/abs/1512.03385) encoder, pretrained on the [Image-Net](https://www.image-net.org/index.php) dataset. This provides a good balance between inference speed and the quality of the segmentation.
@@ -109,7 +117,14 @@ The model is trained for 100 epochs, using the [Adam](https://arxiv.org/abs/1412
 ![Fine-tuning](images/7_training_process.png){:class="img-responsive"}
 
 #### Evaluation
-The model is evaluated on a [COCO-2014](https://cocodataset.org/#home) validation subset, which consists of 1'000 images with bounding boxes and segmentation masks. It achieves a mean IoU of 0.77, a mean precision of 0.82 and a mean recall of 0.91.
+The model is evaluated on a [COCO-2014](https://cocodataset.org/#home) validation subset, which consists of 1’000 images with bounding boxes and segmentation masks. It achieves a mean Intersection over Union (IoU) of 0.77, which is calculated as the ratio of the area of overlap between the predicted bounding box or segmentation mask and the ground truth, to the area of union between them:
+
+$$IoU = \frac{(A \cap B)}{(A \cup B)}$$
+
+where $A$ is the predicted bounding box or segmentation mask and $B$ is the ground truth. The IoU score ranges from 0 to 1, with higher values indicating better performance. A mean IoU of 0.77 indicates that the model is performing well but there is still room for improvement.
+
+The model also achieves mean pixelwise precision and recall scores of 0.82 and 0.91, respectively. Pixelwise precision and recall are other common evaluation metrics used in object segmentation, and they measure the fraction of true positive pixels out of all predicted positive pixels (precision), and the fraction of true positive pixels out of all actual positive pixels (recall). These values provide additional insight into the performance of the model and can be used to identify any potential trade-offs between precision and recall. A higher recall than precision seems to indicate that the model is more sensitive to detecting positive pixels but may be less accurate in predicting them. In other words, the model is more likely to identify most of the positive pixels (high recall), but some of the predicted positive pixels may be incorrect (lower precision).
+
 #### Inference
 The model was run on the images to segment the detected objects using the bounding boxes from the phrase grounding results. The preprocessing for this step was slightly different from the fine-tuning process: the image was resized to 352x352 with padding, normalized, and then turned into a tensor. After the inference, the segmentation was multiplied by the mask to remove any noise and was resized to the original size of the image.
 
@@ -117,6 +132,43 @@ The model was run on the images to segment the detected objects using the boundi
 
 
 ![Inference](images/7_example.png){:class="img-responsive"}
+
+#### Comparison with GrabCut
+A comparison between GrabCut and the deep learning model is shown in in the figure below, on color and black & white images, for one and five inferences. On average, GrabCut takes 259ms per inference, whereas the deep neural net model only needs 47.3ms , which makes it not only better but also faster.
+
+<style type="text/css">
+.tg  {border-collapse:collapse;border-spacing:0;margin:0px auto;}
+.tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+  overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+  font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg .tg-0pky{border-color:inherit;text-align:left;vertical-align:top}
+.tg .tg-fymr{border-color:inherit;font-weight:bold;text-align:left;vertical-align:top}
+</style>
+<table class="tg">
+<thead>
+  <tr>
+    <th class="tg-0pky"></th>
+    <th class="tg-fymr">1 inference</th>
+    <th class="tg-fymr">5 inferences</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td class="tg-fymr">Grabcut</td>
+    <td class="tg-0pky">259ms</td>
+    <td class="tg-0pky">1.24s</td>
+  </tr>
+  <tr>
+    <td class="tg-fymr">Deep Segmentation Model</td>
+    <td class="tg-0pky">47.3ms</td>
+    <td class="tg-0pky">143ms</td>
+  </tr>
+</tbody>
+</table>
+
+![Comp1](images/compv2.png){:class="img-responsive"}
+![Comp2](images/segmentation_comparison.png){:class="img-responsive"}
 
 
 ## Analysis of the results
@@ -187,6 +239,27 @@ Both a random forest classifier and a MLP classifier were unable to perform bett
 </table>
 
 ![grade_distribution](images/grade_distribution.png){:class="img-responsive"}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
