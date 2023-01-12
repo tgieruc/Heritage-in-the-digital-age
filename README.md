@@ -178,9 +178,9 @@ The following command is a Python script that applies non-maximum suppression (N
 This script takes several arguments:
 
 <ul>
-  <li><code>--input\_file</code> specifies the input file, which is a pickle file containing the dataset on which to apply NMS.</li>
-  <li><code>--output\_file</code> specifies the output file, which is a pickle file where the resulting dataset will be stored.</li>
-  <li><code>--columns\_to\_process</code> specifies a list of columns in the dataset on which to apply NMS. In this case, NMS will be applied to the <code>GLIP\_caption</code>, <code>GLIP\_title</code>, <code>MDETR\_caption</code>, and <code>MDETR\_title</code> columns.</li>
+  <li><code>--input_file</code> specifies the input file, which is a pickle file containing the dataset on which to apply NMS.</li>
+  <li><code>--output_file</code> specifies the output file, which is a pickle file where the resulting dataset will be stored.</li>
+  <li><code>--columns_to_process</code> specifies a list of columns in the dataset on which to apply NMS. In this case, NMS will be applied to the <code>GLIP_caption</code>, <code>GLIP_title</code>, <code>MDETR_caption</code>, and <code>MDETR_title</code> columns.</li>
 </ul>
 This applies the NMS directly to the four columns containing the phrase grounding results.
 
