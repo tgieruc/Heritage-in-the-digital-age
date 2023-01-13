@@ -106,7 +106,7 @@ For this example, you need the following architecture:
 │   └── 6_segmentation.py
 ```
 
-`original_data.pkl` is a Pandas DataFrame serialized as a Pickle file that contains the following columns: *bcu_id* the id of the image, *title* the title in French and *caption* the AI-generated alternative caption.
+`original_data.pkl` is a Pandas DataFrame serialized as a Pickle file that contains the following columns: *bcu_id* the ID of the image, *title* the title in French and *caption* the AI-generated alternative caption.
 
 The images are stored in the `data/BCU_database/images/` folder and are in two resolutions: 324w and 2975h.
 
