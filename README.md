@@ -141,7 +141,7 @@ This script adds a column `title_en` to the DataFrame, containing all the titles
 <p>This script creates three new columns <code>caption_preprocessed</code> and <code>title_en_preprocessed</code> containing the preprocessed expressions, and <code>filename</code> containing the filename of the images linked to the <code>bcu_id</code>.</p>
 
 ### 3. Phrase Grounding
-<p>As this part is the most computationally intensive and requires the most GPU memory, Two Jupyter notebooks are available for execution on Google Colab, but it can also be run locally.</p>
+<p>As this part is the most computationally intensive and requires the most GPU memory, two Jupyter notebooks are available for execution on Google Colab, but it can also be run locally.</p>
 <p>The first two commands run the <code>pipeline/3_MDETR_inference.py</code> script to perform inference using MDETR on the <code>caption_preprocessed</code> and <code>title_en_preprocessed</code> columns of the dataset:</p>
 <pre><code>python pipeline/3_MDETR_inference.py --input_file data/2_preprocessing.pkl --output_file temp.pkl --expression_column caption_preprocessed --inference_column MDETR_caption --image_directory data/BCU_database/images
 </code></pre>
