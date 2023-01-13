@@ -266,3 +266,4 @@ This project uses the following projects:
 * One of the two phrase-grounding model used: [GLIP](https://github.com/microsoft/GLIP)
 * The other phrase-grounding model: [MDETR](https://github.com/ashkamath/mdetr)
 * The NLP model for ranking the expressions: [DistilBERT](https://arxiv.org/abs/1910.01108)
+* The segmentation model was created using the [Segmentation Models](https://github.com/qubvel/segmentation_models.pytorch) library.
