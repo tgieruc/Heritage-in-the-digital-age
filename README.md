@@ -7,6 +7,9 @@
 
  A demo of the whole pipeline is available on Google Colab [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/tgieruc/Heritage-in-the-digital-age/blob/main/demo_pipeline.ipynb)
 
+The report can be found [here](Report.pdf).
+
+
 ---
 ## Introduction
 
