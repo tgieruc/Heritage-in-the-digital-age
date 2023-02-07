@@ -267,3 +267,8 @@ This project uses the following projects:
 * The other phrase-grounding model: [MDETR](https://github.com/ashkamath/mdetr)
 * The NLP model for ranking the expressions: [DistilBERT](https://arxiv.org/abs/1910.01108)
 * The segmentation model was created using the [Segmentation Models](https://github.com/qubvel/segmentation_models.pytorch) library.
+
+
+## Contact
+
+You can reach me [here](mailto:theo.gieruc@gmail.com?subject=%5BHeritage%20in%20the%20Digital%20Age%5D) 😊
