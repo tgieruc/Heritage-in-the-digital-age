@@ -3,5 +3,4 @@ segmentation_models_pytorch
 torch
 torchvision
 timm
-sacremose
 supervision==0.5.2
