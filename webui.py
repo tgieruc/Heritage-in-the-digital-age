@@ -28,6 +28,13 @@ img_path = os.path.join(file_dir, "data", "images")
 COLORS = 255 * np.array([[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
           [0.494, 0.184, 0.556], [0.466, 0.674, 0.188], [0.301, 0.745, 0.933], [0,0,0]])
 
+def is_docker():
+    path = '/proc/self/cgroup'
+    return (
+        os.path.exists('/.dockerenv') or
+        os.path.isfile(path) and any('docker' in line for line in open(path))
+    )
+
 #------------------ Get and update dataframe ------------------#
 
 def get_data_translate(file):
@@ -159,7 +166,7 @@ def upload_images(file):
     with zipfile.ZipFile(file.name, 'r') as zip_ref:
         zip_ref.extractall(img_path)
 
-    return "Images uploaded!", img_path
+    return gr.UploadButton().update("Images uploaded!"), img_path
 
 #----------------- Module functions -----------------#
 
@@ -550,6 +557,10 @@ with gr.Blocks() as demo:
 
             tab_visualization.select(update_visualization, [], [df, data_column, image_dir])
 
-demo.launch(share=True)
+
+if is_docker():
+    demo.launch(server_name="0.0.0.0", server_port=8080)
+else:
+    demo.launch(share=True)
 
 

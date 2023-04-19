@@ -52,7 +52,7 @@ class SegmentationModel:
         """
 
         # Return early if mask is not present
-        if data['mask'] is None:
+        if data['segmentation'] is None:
             return data, None
 
         predictions = []
@@ -66,7 +66,7 @@ class SegmentationModel:
         bboxes = []
 
         # Apply mask to prediction in order to filter out noise outside of the mask
-        for mask, prediction in zip(data['mask'], predictions):
+        for mask, prediction in zip(data['segmentation'], predictions):
             filtered_segmentation.append(mask * prediction)
             bboxes.append(self.get_bbox_from_mask(mask[0]))
 
@@ -105,7 +105,7 @@ class SegmentationModel:
         """
 
         # Return early if mask is not present
-        if len(data['conf']) == 0:
+        if len(data['scores']) == 0:
             return None       
         
         # Create default transforms if none are provided
@@ -119,7 +119,7 @@ class SegmentationModel:
                                     T.ToTensor(),
                                 ])
 
-        mask = np.zeros((len(data['bbox']), img.shape[0], img.shape[1]))
+        mask = np.zeros((len(data['bounding_boxes']), img.shape[0], img.shape[1]))
 
         # Resize image to desired size, and pad with black pixels
         old_size = img.shape[:2]
@@ -139,7 +139,7 @@ class SegmentationModel:
         # Create mask for each bounding box
         new_mask = []
 
-        for i, box in enumerate(data['bbox']):
+        for i, box in enumerate(data['bounding_boxes']):
             box[box < 0] = 0
             box = box.int()
             mask[i, box[1] : box[3], box[0] : box[2]] = 1
@@ -168,12 +168,12 @@ class SegmentationModel:
 
 
         # Apply mask to image 
-        input_to_model = torch.zeros((len(data['bbox']), 3, img.shape[1], img.shape[2]))
+        input_to_model = torch.zeros((len(data['bounding_boxes']), 3, img.shape[1], img.shape[2]))
         for i, mask in enumerate(masks):
             input_to_model[i] = img * mask
 
         # Run inference on image
-        segmentation = self.inference( {'mask': masks, 'original_shape': old_size, 'input': input_to_model, 'data': data})
+        segmentation = self.inference( {'segmentation': masks, 'original_shape': old_size, 'input': input_to_model, 'data': data})
 
         return segmentation
 
@@ -293,9 +293,9 @@ def plot_results(img, data, expression='', segmentations=None, ax=None, conf=0.7
         return ax
 
     # Filter results by confidence threshold
-    keep = data['conf'] > conf
-    scores = data['conf'][keep]
-    boxes = data['bbox'][keep]
+    keep = data['scores'] > conf
+    scores = data['scores'][keep]
+    boxes = data['bounding_boxes'][keep]
     labels = [label for i, label in enumerate(data['labels']) if keep[i]]
     set_label = set(labels)
     if segmentations is not None:
@@ -355,7 +355,7 @@ class SegmentationDataset(torch.utils.data.Dataset):
         img_path = self.images_folder + data['filename']
         pilimg = Image.open(img_path).convert("RGB")
         img = np.array(pilimg)
-        mask = np.zeros((len(data['bbox']), img.shape[0], img.shape[1]))
+        mask = np.zeros((len(data['bounding_boxes']), img.shape[0], img.shape[1]))
 
         old_size = img.shape[:2]
         ratio = float(self.desired_size) / max(old_size)
@@ -376,10 +376,10 @@ class SegmentationDataset(torch.utils.data.Dataset):
             return {
             'original_shape': old_size,
             'input': None,
-            'mask': None,
+            'segmentation': None,
             'data': data,
             }
-        for i, box in enumerate(data['bbox']):
+        for i, box in enumerate(data['bounding_boxes']):
             box[box < 0] = 0
             box = box.int()
             mask[i, box[1] : box[3], box[0] : box[2]] = 1
@@ -411,7 +411,7 @@ class SegmentationDataset(torch.utils.data.Dataset):
         return {
             'original_shape': old_size,
             'input': filtered_segmentation,
-            'mask': mask,
+            'segmentation': mask,
             'data': data,
         }
 

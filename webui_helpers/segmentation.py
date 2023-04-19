@@ -16,23 +16,17 @@ def ASM_apply_segmentation(row, segmentation_model, args, col):
     filename = os.path.join(args.image_dir, row['filename'])
     if not os.path.exists(filename):
         return []
-    
-    output = {}    
-    phrase_grounding = row[col]
-
-    data = {'labels': phrase_grounding[2], 'bbox': phrase_grounding[1], 'conf': phrase_grounding[0]}
 
     image = np.array(Image.open(filename).convert('RGB'))
 
+
+    data = row[col]
+
     segmentation_masks = segmentation_model.single_inference(image, data)
 
-    if args.save_segmentation_pickle:
-        pickle_name = os.path.join(args.output_dir,  row['filename'].replace('.png','').replace('.jpg','') + '.pkl')
-        pickle.dump(segmentation_masks, open(pickle_name, 'wb'))
-    if args.save_segmentation_pandas:
-        output['segmentation'] = segmentation_masks
+    data['segmentation'] = segmentation_masks
 
-    return output
+    return data
 
 
 def run_ASM(dataframe, args):
