@@ -22,7 +22,13 @@ echo "Installing Segment Anything..."
 # Segment Anything
 pip install -q git+https://github.com/facebookresearch/segment-anything.git
 
+echo 
+echo "Installing AgnosticSegment..."
+pip install --upgrade gdown
+
+gdown 1OWH7arM-qllbCJwqkMVy9NKWHB398iol -O $HOME/submodules/AgnosticSegment/agnostic_segment.pth
 
 echo
 echo "Installing last requirements..."
 pip install -q -r requirements.txt
+

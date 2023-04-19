@@ -4,6 +4,7 @@ import numpy as np
 from PIL import Image
 import os, sys
 import torch
+import gdown
 
 # add file to path
 sys.path.append(os.path.dirname((os.path.abspath(__file__))))
@@ -37,14 +38,15 @@ def ASM_apply_segmentation(row, segmentation_model, args, col):
 def run_ASM(dataframe, args):
     tqdm.pandas()
 
-    # create output directory if it does not exist
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
-
     if isinstance(args.detection_columns, str):
         args.detection_columns = [args.detection_columns]
 
-    model = SegmentationModel(args.model_path, device=args.device)
+    model_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'model', 'ASM_model.pth')
+    if not os.path.exists(model_path):
+        print('Downloading ASM model weights...')
+        gdown.download('https://drive.google.com/uc?id=1OWH7arM-qllbCJwqkMVy9NKWHB398iol', model_path, quiet=False)
+
+    model = SegmentationModel(model_path, device=args.device)
     
     for col in args.detection_columns:
 
@@ -109,7 +111,11 @@ def run_SAM(dataframe, args, algorithm):
 
     tqdm.pandas()
 
-    for cols in args.detection_columns:
+    columns = args.detection_columns
+    if isinstance(columns, str):
+        columns = [columns]
+
+    for cols in columns:
         dataframe[f'{cols}_{algorithm}'] = dataframe.progress_apply(lambda x: SAM_apply_segmentation(x, predictor, args, cols), axis=1)
 
     return dataframe

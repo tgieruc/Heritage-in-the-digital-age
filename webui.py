@@ -10,7 +10,7 @@ import supervision as sv
 import torch
 from tqdm import tqdm
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
-
+import zipfile
 file_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(file_dir)
 sys.path.append(os.path.join(file_dir, "webui_helpers"))
@@ -23,6 +23,7 @@ from webui_helpers.segmentation import run_ASM, run_SAM
 tqdm.pandas()
 
 dataframe = None
+img_path = os.path.join(file_dir, "data", "images")
 
 COLORS = 255 * np.array([[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
           [0.494, 0.184, 0.556], [0.466, 0.674, 0.188], [0.301, 0.745, 0.933], [0,0,0]])
@@ -31,7 +32,6 @@ COLORS = 255 * np.array([[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0
 
 def get_data_translate(file):
     global dataframe
-    print(dir(file))
     dataframe = pd.read_pickle(file.name)
     options = []
     if "title" in dataframe.columns:
@@ -45,7 +45,7 @@ def update_translate():
     options = []
     if "title" in dataframe.columns:
         options.append("title")
-    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options)
+    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options), img_path
 
 def get_data_preprocess(file):
     global dataframe
@@ -74,7 +74,7 @@ def update_preprocess():
         options_preprocess.append("caption")
     if "bcu_id" in dataframe.columns:
         options_id.append("bcu_id")
-    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_preprocess), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_id)
+    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_preprocess), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_id), img_path
 
 def get_data_phrase_grounding(file):
     global dataframe
@@ -97,7 +97,7 @@ def update_phrase_grounding():
         if column.endswith("_preprocessed"):
             options.append(column)
 
-    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options)
+    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options), img_path
 
 def get_data_segmentation(file):
     global dataframe
@@ -126,7 +126,7 @@ def update_segmentation():
         elif "_DINO" in column:
             options.append(column)
 
-    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options)
+    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options), img_path
 
 def get_data_visualization(file):
     global dataframe
@@ -139,7 +139,7 @@ def update_visualization():
     if dataframe is None:
         dataframe = pd.DataFrame()
 
-    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist())
+    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist()), img_path
 
 def save_dataframe(directory):
     global dataframe
@@ -149,6 +149,17 @@ def save_dataframe(directory):
     dataframe.to_pickle(directory)
 
     return "Dataframe saved!"
+
+def upload_images(file):
+    global img_path
+    img_path = os.path.join(file_dir, "data", "images")
+    if not os.path.exists(img_path):
+        os.makedirs(img_path)
+    
+    with zipfile.ZipFile(file.name, 'r') as zip_ref:
+        zip_ref.extractall(img_path)
+
+    return "Images uploaded!", img_path
 
 #----------------- Module functions -----------------#
 
@@ -243,7 +254,7 @@ def run_phrase_grounding(algorithm, image_directory, caption_columns, device):
 
     return dataframe
 
-def run_segmentation(algorithm, image_dir, output_dir, save_options, detection_columns, device, model_path):
+def run_segmentation(algorithm, image_dir, detection_columns, device):
     global dataframe
 
     if dataframe is None:
@@ -251,13 +262,8 @@ def run_segmentation(algorithm, image_dir, output_dir, save_options, detection_c
     
     args = SimpleNamespace()
     args.image_dir = image_dir
-    args.output_dir = output_dir
-    args.save_fig = "PNG" in save_options
-    args.save_segmentation_pickle = "PICKLE" in save_options
-    args.save_segmentation_pandas = "PANDAS" in save_options
     args.detection_columns = detection_columns
     args.device = device
-    args.model_path = os.path.join("model", model_path)
     if algorithm == "ASM":
         dataframe = run_ASM(dataframe, args)
     elif algorithm.split("-")[0] == "SAM":
@@ -384,6 +390,9 @@ with gr.Blocks() as demo:
 
                 with gr.Column():
                     upload_button = gr.UploadButton("Click to Upload the dataframe", type="file")
+                    upload_images_button = gr.UploadButton("Upload images in zip", type="file", file_types=["zip"])
+                    nothing = gr.Button("Nothing", visible=False)
+                    upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, nothing])
 
                 with gr.Column():
                     column_to_translate = gr.Dropdown(label="Column(s) to translate", multiselect=True)
@@ -398,7 +407,7 @@ with gr.Blocks() as demo:
                     save_button = gr.Button("Save")
                     save_button.click(save_dataframe, save_directory, save_button)
 
-            tab_translate.select(update_translate, [], [df, column_to_translate])
+            tab_translate.select(update_translate, [], [df, column_to_translate, nothing])
 
     # ------------------------- PREPROCESS ------------------------- #
 
@@ -412,19 +421,21 @@ with gr.Blocks() as demo:
                     
                     with gr.Column():
                         upload_button = gr.UploadButton("Click to Upload the dataframe", type="file")
-    
+                        upload_images_button = gr.UploadButton("Upload images in zip", type="file")
+
                     with gr.Column():
                         column_to_preprocess = gr.Dropdown(label="Column(s) to preprocess", multiselect=True)
                         translate_button = gr.Button("Preprocess")
                         translate_button.click(preprocess, column_to_preprocess, df)
 
                     with gr.Column():
-                        image_directory = gr.Text("demo/img/", label="Image directory")
+                        image_dir = gr.Text("demo/img/", label="Image directory")
                         id_column = gr.Dropdown(label="ID column", multiselect=False)
                         quality = gr.Radio(["324w", "2975h"], label="Quality", value="324w")
                         get_image_names_button = gr.Button("Get image names")
-                        get_image_names_button.click(get_image_names, [image_directory, id_column, quality], df)
-                        
+                        get_image_names_button.click(get_image_names, [image_dir, id_column, quality], df)
+                        upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, image_dir])
+
                     with gr.Column():
                         save_directory = gr.Text("df_preprocessed.pkl", label="Save directory")
                         save_button = gr.Button("Save")
@@ -432,7 +443,7 @@ with gr.Blocks() as demo:
         
                     upload_button.upload(get_data_preprocess, upload_button, [df, column_to_preprocess, id_column])
 
-            tab_preprocessing.select(update_preprocess, [], [df, column_to_preprocess, id_column])
+            tab_preprocessing.select(update_preprocess, [], [df, column_to_preprocess, id_column, image_dir])
 
     # ------------------------- PHRASE GROUNDING ------------------------- #
 
@@ -444,19 +455,22 @@ with gr.Blocks() as demo:
 
             with gr.Row():
 
-                upload_button = gr.UploadButton("Click to Upload the dataframe", type="file")
+                with gr.Column():
+                    upload_button = gr.UploadButton("Click to Upload the dataframe", type="file")
+                    upload_images_button = gr.UploadButton("Upload images in zip", type="file", file_types=["zip"])
 
                 with gr.Column():
                     algorithm = gr.Dropdown(["Grounding DINO"], label="Algorithm", multiselect=False, value="Grounding DINO")
-                    image_directory = gr.Text("demo/img/", label="Image directory")
+                    image_dir = gr.Text("demo/img/", label="Image directory")
                     caption_column = gr.Dropdown(label="Column for caption", multiselect=True)
                     devices = ["cpu"]
                     if torch.cuda.is_available():
                         devices.append("cuda")
                     device = gr.Radio(devices, label="Device", value="cuda" if torch.cuda.is_available() else "cpu")
                     run_button = gr.Button("Run")
-                    run_button.click(run_phrase_grounding, [algorithm, image_directory, caption_column, device], df)
-                
+                    run_button.click(run_phrase_grounding, [algorithm, image_dir, caption_column, device], df)
+                    upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, image_dir])
+
                 upload_button.upload(get_data_phrase_grounding, upload_button, [df, caption_column])
 
                 with gr.Column():
@@ -464,7 +478,7 @@ with gr.Blocks() as demo:
                     save_button = gr.Button("Save")
                     save_button.click(save_dataframe, save_directory, save_button)
             
-            tab_phrase_grounding.select(update_phrase_grounding, [], [df, caption_column])
+            tab_phrase_grounding.select(update_phrase_grounding, [], [df, caption_column, image_dir])
 
     # ------------------------- OBJECT SEGMENTATION ------------------------- #
 
@@ -476,33 +490,35 @@ with gr.Blocks() as demo:
 
             with gr.Row():
 
-                upload_button = gr.UploadButton("Click to Upload the dataframe", type="file")
+                with gr.Column():
+                    upload_button = gr.UploadButton("Click to Upload the dataframe", type="file")
+                    upload_images_button = gr.UploadButton("Upload images in zip", type="file", file_types=["zip"])
 
                 with gr.Column():
-                    save_options = gr.CheckboxGroup(["PNG", "PICKLE", "PANDAS"], label="Save options", value=["PNG", "PICKLE", "PANDAS"])
+                    # save_options = gr.CheckboxGroup(["PNG", "PICKLE", "PANDAS"], label="Save options", value=["PNG", "PICKLE", "PANDAS"])
                     algorithm = gr.Radio(["ASM", "SAM-B", "SAM-L", "SAM-H"], label="Algorithm", value="SAM-B")
                     image_dir = gr.Text("demo/img/", label="Image directory")
-                    output_dir = gr.Text("demo/img_result/", label="Output directory")
+                    # output_dir = gr.Text("demo/img_result/", label="Output directory")
                     detection_columns = gr.Dropdown(label="Column for segmentation", multiselect=True)
                     model_dir = os.path.join(os.getcwd(), "model")
                     if not os.path.exists(model_dir):
                         os.mkdir(model_dir)
-                    model_path = gr.Dropdown(choices=os.listdir(model_dir), label="Model path", multiselect=False, value=os.listdir(model_dir)[0] if len(os.listdir(model_dir)) > 0 else None)
                     devices = ["cpu"]
                     if torch.cuda.is_available():
                         devices.append("cuda")
                     device = gr.Radio(devices, label="Device", value="cuda" if torch.cuda.is_available() else "cpu")
                     run_button = gr.Button("Run")
-                    run_button.click(run_segmentation, [algorithm, image_dir, output_dir, save_options, detection_columns, device, model_path], df)
+                    run_button.click(run_segmentation, [algorithm, image_dir, detection_columns, device], df)
                 
                 upload_button.upload(get_data_segmentation, upload_button, [df, detection_columns])
-            
+                upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, image_dir])
+
                 with gr.Column():
                     save_directory = gr.Text("df_segmented.pkl", label="Save directory")
                     save_button = gr.Button("Save")
                     save_button.click(save_dataframe, save_directory, save_button)
 
-            tab_segmentation.select(update_segmentation, [], [df, detection_columns])
+            tab_segmentation.select(update_segmentation, [], [df, detection_columns, image_dir])
 
     # ------------------------- VISUALIZATION ------------------------- #
 
@@ -513,8 +529,9 @@ with gr.Blocks() as demo:
             df = gr.DataFrame()
 
             with gr.Row():
-
-                upload_button = gr.UploadButton("Click to Upload the dataframe", type="file")
+                with gr.Column():
+                    upload_button = gr.UploadButton("Click to Upload the dataframe", type="file")
+                    upload_images_button = gr.UploadButton("Upload images in zip", type="file", file_types=["zip"])
 
                 with gr.Column():
                     image_dir = gr.Text("demo/img/", label="Image directory")
@@ -527,9 +544,11 @@ with gr.Blocks() as demo:
             visuHTML = gr.HTML()
 
             upload_button.upload(get_data_visualization, upload_button, [df, data_column])
+            upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, image_dir])
+
             run_button.click(visualize_dataframe, [image_dir, num_samples, data_column, visu_selection, font_scale], visuHTML)
 
-            tab_visualization.select(update_visualization, [], [df, data_column])
+            tab_visualization.select(update_visualization, [], [df, data_column, image_dir])
 
 demo.launch(share=True)
 
