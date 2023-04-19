@@ -8,10 +8,10 @@ wget https://github.com/IDEA-Research/GroundingDINO/releases/download/v0.1.0-alp
 
 cd $HOME/submodules/GroundingDINO
 
-pip install -e .
+pip install -q -e .
 
 cd $HOME
 # Segment Anything
-pip install git+https://github.com/facebookresearch/segment-anything.git
+pip install -q git+https://github.com/facebookresearch/segment-anything.git
 
-pip install -r requirements.txt
+pip install -q -r requirements.txt
