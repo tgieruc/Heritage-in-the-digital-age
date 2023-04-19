@@ -3,4 +3,6 @@ segmentation_models_pytorch
 torch
 torchvision
 timm
+sentencepiece
+sacremoses
 supervision==0.5.2
