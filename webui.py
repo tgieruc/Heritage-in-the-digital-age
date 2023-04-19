@@ -1,31 +1,28 @@
 import os
 import sys
+from types import SimpleNamespace
 
 import cv2
 import gradio as gr
 import numpy as np
 import pandas as pd
+import supervision as sv
 import torch
 from tqdm import tqdm
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
-tqdm.pandas()
-from types import SimpleNamespace
-
-import supervision as sv
-
-filedir = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(filedir)
-sys.path.append(os.path.join(filedir, "webui_helpers"))
-sys.path.append(os.path.join(filedir, "submodules"))
-sys.path.append(os.path.join(filedir, "submodules/GroundingDINO"))
+file_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(file_dir)
+sys.path.append(os.path.join(file_dir, "webui_helpers"))
+sys.path.append(os.path.join(file_dir, "submodules"))
+sys.path.append(os.path.join(file_dir, "submodules/GroundingDINO"))
 
 from webui_helpers.phrase_grounding import run_DINO
 from webui_helpers.segmentation import run_ASM, run_SAM
 
-dataframe = None
+tqdm.pandas()
 
-file_dir = os.path.dirname(os.path.realpath(__file__))
+dataframe = None
 
 COLORS = 255 * np.array([[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
           [0.494, 0.184, 0.556], [0.466, 0.674, 0.188], [0.301, 0.745, 0.933], [0,0,0]])
@@ -369,8 +366,6 @@ def visualize_dataframe(img_dir, num_imgs, data_column, visu_selection, fontscal
     html += "</div>"
     return gr.HTML.update(html)
 
-
-            
 # ------------------------- GRADIO ------------------------- #
 
 
@@ -536,6 +531,6 @@ with gr.Blocks() as demo:
 
             tab_visualization.select(update_visualization, [], [df, data_column])
 
-demo.launch(debug=True)
+demo.launch(share=True)
 
 
