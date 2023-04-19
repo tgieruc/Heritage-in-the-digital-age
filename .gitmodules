@@ -1,3 +1,6 @@
 [submodule "pipeline/src/GLIP"]
 	path = pipeline/src/GLIP
 	url = https://github.com/microsoft/GLIP
+[submodule "submodules/GroundingDINO"]
+	path = submodules/GroundingDINO
+	url = https://github.com/IDEA-Research/GroundingDINO.git
