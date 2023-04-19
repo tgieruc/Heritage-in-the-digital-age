@@ -1,0 +1,7 @@
+gradio
+segmentation_models_pytorch
+torch
+torchvision
+timm
+sacremose
+superivion==0.5.2
