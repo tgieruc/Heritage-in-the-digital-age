@@ -28,12 +28,6 @@ img_path = os.path.join(file_dir, "data", "images")
 COLORS = 255 * np.array([[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
           [0.494, 0.184, 0.556], [0.466, 0.674, 0.188], [0.301, 0.745, 0.933], [0,0,0]])
 
-def is_docker():
-    path = '/proc/self/cgroup'
-    return (
-        os.path.exists('/.dockerenv') or
-        os.path.isfile(path) and any('docker' in line for line in open(path))
-    )
 
 #------------------ Get and update dataframe ------------------#
 
@@ -170,7 +164,7 @@ def upload_images(file):
 
 #----------------- Module functions -----------------#
 
-def translate_titles(columns="title"):
+def translate_titles(columns, language):
     def translate(sentence, model, tokenizer, device):
         input_ids = tokenizer(sentence, return_tensors="pt").input_ids.to(device)
         outputs = model.generate(input_ids=input_ids, num_beams=5, num_return_sequences=1)
@@ -179,12 +173,21 @@ def translate_titles(columns="title"):
     global dataframe
     if dataframe is None:
         return "No dataframe loaded"
-
+    
     # get device
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model = AutoModelForSeq2SeqLM.from_pretrained("Helsinki-NLP/opus-mt-fr-en").to(device)
-    tokenizer = AutoTokenizer.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
+    model_name = {
+        "French": "Helsinki-NLP/opus-mt-fr-en",
+        "German": "Helsinki-NLP/opus-mt-de-en",
+        "Italian": "Helsinki-NLP/opus-mt-it-en",
+        "Spanish": "Helsinki-NLP/opus-mt-es-en",
+        "Dutch": "Helsinki-NLP/opus-mt-nl-en",
+        "Portuguese": "Helsinki-NLP/opus-mt-pt-en",
+        "Russian": "Helsinki-NLP/opus-mt-ru-en"
+    }
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name[language]).to(device)
+    tokenizer = AutoTokenizer.from_pretrained(model_name[language])
 
 
     if isinstance(columns, str):
@@ -305,7 +308,7 @@ def apply_mask(image, mask, color, alpha=0.3):
                                   image[:, :, c])
     return image
 
-def visualize_dataframe(img_dir, num_imgs, data_column, visu_selection, fontscale):
+def visualize_dataframe(img_dir, num_imgs, data_columns, visu_selection, fontscale):
     global dataframe
     
     if num_imgs > len(dataframe):
@@ -402,12 +405,13 @@ with gr.Blocks() as demo:
                     upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, nothing])
 
                 with gr.Column():
+                    language = gr.Dropdown(["French", "German", "Italian", "Spanish", "Dutch", "Portuguese", "Russian"], label="Language", value="French")
                     column_to_translate = gr.Dropdown(label="Column(s) to translate", multiselect=True)
                     upload_button.upload(get_data_translate, upload_button, [df, column_to_translate])
 
                     # column_to_translate = gr.Text("title", label="Column to translate")
                     translate_button = gr.Button("Translate")
-                    translate_button.click(translate_titles, column_to_translate, df)
+                    translate_button.click(translate_titles, [column_to_translate, language], df)
 
                 with gr.Column():
                     save_directory = gr.Text("df_translated.pkl", label="Save directory")
@@ -558,9 +562,7 @@ with gr.Blocks() as demo:
             tab_visualization.select(update_visualization, [], [df, data_column, image_dir])
 
 
-if is_docker():
-    demo.launch(server_name="0.0.0.0", server_port=8080)
-else:
-    demo.launch(share=True)
+
+demo.launch(share=True)
 
 
