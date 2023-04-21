@@ -22,7 +22,7 @@ COLORS = [[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
 class SegmentationModel:
     """A class that represents a segmentation model."""
 
-    def __init__(self, path, device: torch.device):
+    def __init__(self, path, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
         """
         Initializes the segmentation model, with the given path.
 
@@ -30,7 +30,7 @@ class SegmentationModel:
             path: The path to the model file.
             device: The device to run the model on.
         """
-        self.model = torch.load(path)
+        self.model = torch.load(path, map_location=device)
         self.model.to(device)
         self.model.eval()
         self.device = device

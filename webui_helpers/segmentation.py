@@ -5,7 +5,7 @@ from PIL import Image
 import os, sys
 import torch
 import gdown
-
+from copy import deepcopy
 # add file to path
 sys.path.append(os.path.dirname((os.path.abspath(__file__))))
 from ASM import SegmentationModel
@@ -20,7 +20,7 @@ def ASM_apply_segmentation(row, segmentation_model, args, col):
     image = np.array(Image.open(filename).convert('RGB'))
 
 
-    data = row[col]
+    data = deepcopy(row[col])
 
     segmentation_masks = segmentation_model.single_inference(image, data)
 
@@ -43,7 +43,6 @@ def run_ASM(dataframe, args):
     model = SegmentationModel(model_path, device=args.device)
     
     for col in args.detection_columns:
-
         dataframe[f'{col}_ASM'] = dataframe.progress_apply(lambda x: ASM_apply_segmentation(x, model, args, col), axis=1)
     
     return dataframe
@@ -54,7 +53,7 @@ def SAM_apply_segmentation(row, predictor, args, col):
     image = np.array(Image.open(os.path.join(args.image_dir, row['filename'])).convert('RGB'))
     predictor.set_image(image)
 
-    data = row[col]
+    data = deepcopy(row[col])
     bounding_boxes = data["bounding_boxes"]
 
     masks = []

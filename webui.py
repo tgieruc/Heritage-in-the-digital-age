@@ -308,13 +308,55 @@ def apply_mask(image, mask, color, alpha=0.3):
                                   image[:, :, c])
     return image
 
+def visualize_img(img, element, visu_selection, data_column, fontscale):
+    data = element[data_column]
+
+    masks = data["segmentation"].numpy() if "segmentation" in data.keys() else None
+    bounding_boxes = data["bounding_boxes"].numpy().reshape(-1,4) if "bounding_boxes" in data.keys() else None
+    scores = data["scores"].numpy().flatten() if "scores" in data.keys() else None
+    labels = data["labels"] if "labels" in data.keys() else None
+
+
+    if ("Score" in visu_selection) and ("Label" in visu_selection):
+        labels = [
+            f"{phrase} {logit:.2f}"
+            for phrase, logit
+            in zip(labels, scores)
+        ]
+    elif "Score" in visu_selection:
+        labels = [
+            f"{logit:.2f}"
+            for logit
+            in scores
+        ]
+    elif "Label" in visu_selection:
+        labels = labels
+
+    if ("Bounding box" in visu_selection) and (bounding_boxes is not None):
+        if scores is None:
+            detections = sv.Detections(xyxy=bounding_boxes)
+        else:
+            detections = sv.Detections(xyxy=bounding_boxes, confidence=scores)
+
+        box_annotator = sv.BoxAnnotator(text_scale=fontscale, text_padding=0)
+        if labels is None:
+            labels = ["" for _ in range(len(bounding_boxes))]
+        img = box_annotator.annotate(scene=img, detections=detections, labels=labels)
+    
+    if ("Segmentation" in visu_selection) and (masks is not None):
+        detections = sv.Detections(xyxy=bounding_boxes, mask=masks)
+        mask_annotator = sv.MaskAnnotator()
+        img = mask_annotator.annotate(scene=img, detections=detections)
+
+    return img
+
 def visualize_dataframe(img_dir, num_imgs, data_columns, visu_selection, fontscale):
     global dataframe
     
     if num_imgs > len(dataframe):
         num_imgs = len(dataframe)
 
-    # will be using temp to store the images
+    # will be using temp to s   tore the images
     temp_folder = os.path.join(file_dir, "temp")
     if not os.path.exists(temp_folder):
         os.mkdir(temp_folder)
@@ -329,56 +371,32 @@ def visualize_dataframe(img_dir, num_imgs, data_columns, visu_selection, fontsca
     for i, element in dataframe[:num_imgs].iterrows():
 
         img = cv2.imread(os.path.join(img_dir, element['filename']))
-        
-        
-        if data_column == '':
+
+        if data_columns == '' or data_columns is None:
             cv2.imwrite(os.path.join(temp_folder, f"{i + id_offset}.png"), img)
             continue
         
-        data = element[data_column]
+        if isinstance(data_columns, str):
+            data_columns = [data_columns]
 
-        masks = data["segmentation"].numpy() if "segmentation" in data.keys() else None
-        bounding_boxes = data["bounding_boxes"].numpy().reshape(-1,4) if "bounding_boxes" in data.keys() else None
-        scores = data["scores"].numpy().flatten() if "scores" in data.keys() else None
-        labels = data["labels"] if "labels" in data.keys() else None
+        imgs = []
 
-
-        if ("Score" in visu_selection) and ("Label" in visu_selection):
-            labels = [
-                f"{phrase} {logit:.2f}"
-                for phrase, logit
-                in zip(labels, scores)
-            ]
-        elif "Score" in visu_selection:
-            labels = [
-                f"{logit:.2f}"
-                for logit
-                in scores
-            ]
-        elif "Label" in visu_selection:
-            labels = labels
-
-        if ("Bounding box" in visu_selection) and (bounding_boxes is not None):
-            if scores is None:
-                detections = sv.Detections(xyxy=bounding_boxes)
-            else:
-                detections = sv.Detections(xyxy=bounding_boxes, confidence=scores)
-
-            box_annotator = sv.BoxAnnotator(text_scale=fontscale, text_padding=0)
-            if labels is None:
-                labels = ["" for _ in range(len(bounding_boxes))]
-            img = box_annotator.annotate(scene=img, detections=detections, labels=labels)
+        for data_column in data_columns:
+            imgs.append(visualize_img(img.copy(), element, visu_selection, data_column, fontscale))
         
-        if ("Segmentation" in visu_selection) and (masks is not None):
-            detections = sv.Detections(xyxy=bounding_boxes, mask=masks)
-            mask_annotator = sv.MaskAnnotator()
-            img = mask_annotator.annotate(scene=img, detections=detections)
+
+        if len(imgs) == 0:
+            imgs = [img]
+        img = np.concatenate(imgs, axis=1)
+
+        
+
 
         cv2.imwrite(os.path.join(temp_folder, f"{i + id_offset}.png"), img)
 
     html = f"<div id='{np.random.rand()}'>"
     for i in range(num_imgs):
-        html += f"<img id='{np.random.rand()}' src='file/{file_dir}/temp/{i + id_offset}.png' width='400' height='400'/>"
+        html += f"<img id='{np.random.rand()}' src='file/{file_dir}/temp/{i + id_offset}.png' height='400'/>"
     html += "</div>"
     return gr.HTML.update(html)
 
@@ -546,7 +564,7 @@ with gr.Blocks() as demo:
 
                 with gr.Column():
                     image_dir = gr.Text("demo/img/", label="Image directory")
-                    data_column = gr.Dropdown(label="Column for data", multiselect=False)
+                    data_columns = gr.Dropdown(label="Column for data", multiselect=True)
                     visu_selection = gr.CheckboxGroup(["Label", "Score", "Bounding box", "Segmentation"], label="Data to visualize", value=["Label", "Score", "Bounding box", "Segmentation"])
                     num_samples = gr.Slider(minimum=1, maximum=100, value=10, step=1, label="Number of samples")
                     font_scale = gr.Slider(minimum=0.1, maximum=2, value=0.5, step=0.1, label="Font scale")
@@ -554,12 +572,12 @@ with gr.Blocks() as demo:
             
             visuHTML = gr.HTML()
 
-            upload_button.upload(get_data_visualization, upload_button, [df, data_column])
+            upload_button.upload(get_data_visualization, upload_button, [df, data_columns])
             upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, image_dir])
 
-            run_button.click(visualize_dataframe, [image_dir, num_samples, data_column, visu_selection, font_scale], visuHTML)
+            run_button.click(visualize_dataframe, [image_dir, num_samples, data_columns, visu_selection, font_scale], visuHTML)
 
-            tab_visualization.select(update_visualization, [], [df, data_column, image_dir])
+            tab_visualization.select(update_visualization, [], [df, data_columns, image_dir])
 
 
 
