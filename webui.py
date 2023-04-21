@@ -17,6 +17,8 @@ sys.path.append(os.path.join(file_dir, "webui_helpers"))
 sys.path.append(os.path.join(file_dir, "submodules"))
 sys.path.append(os.path.join(file_dir, "submodules/GroundingDINO"))
 
+IN_COLAB = 'google.colab' in sys.modules
+
 from webui_helpers.phrase_grounding import run_DINO
 from webui_helpers.segmentation import run_ASM, run_SAM
 
@@ -182,6 +184,13 @@ def save_dataframe(directory):
         return "No dataframe loaded"
 
     dataframe.to_pickle(directory)
+
+    if IN_COLAB:
+        try:
+            from google.colab import files
+            files.download(directory)
+        except:
+            pass
 
     return "Dataframe saved!"
 
