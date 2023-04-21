@@ -52,14 +52,17 @@ def get_data_preprocess(file):
     global dataframe
     dataframe = pd.read_pickle(file.name)
     options_preprocess = []
-    options_id = []
+    options_id = ""
 
     if "title_en" in dataframe.columns:
         options_preprocess.append("title_en")
     if "caption" in dataframe.columns:
         options_preprocess.append("caption")
-    if "bcu_id" in dataframe.columns:
-        options_id.append("bcu_id")
+    
+    for column in dataframe.columns:
+        if column.endswith("_id"):
+            options_id = column
+
     return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_preprocess), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_id)
 
 def update_preprocess():
@@ -67,14 +70,17 @@ def update_preprocess():
     if dataframe is None:
         dataframe = pd.DataFrame()
     options_preprocess = []
-    options_id = []
+    options_id = ""
 
     if "title_en" in dataframe.columns:
         options_preprocess.append("title_en")
     if "caption" in dataframe.columns:
         options_preprocess.append("caption")
-    if "bcu_id" in dataframe.columns:
-        options_id.append("bcu_id")
+    
+    for column in dataframe.columns:
+        if column.endswith("_id"):
+            options_id = column
+
     return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_preprocess), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_id), img_path
 
 def get_data_phrase_grounding(file):
@@ -90,6 +96,7 @@ def get_data_phrase_grounding(file):
 
 def update_phrase_grounding():
     global dataframe
+    global img_path
     if dataframe is None:
         dataframe = pd.DataFrame()
     options = []
@@ -116,6 +123,7 @@ def get_data_segmentation(file):
 
 def update_segmentation():
     global dataframe
+    global img_path
     if dataframe is None:
         dataframe = pd.DataFrame()
     options = []
@@ -131,16 +139,42 @@ def update_segmentation():
 
 def get_data_visualization(file):
     global dataframe
+    global img_path
     dataframe = pd.read_pickle(file.name)
 
-    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist())
+    options = []
+
+    for column in dataframe.columns:
+        if column.endswith("_ASM"):
+            options.append(column)
+        elif column.endswith("_SAM-H"):
+            options.append(column)
+        elif column.endswith("_SAM-L"):
+            options.append(column)
+        elif column.endswith("_SAM-B"):
+            options.append(column)
+
+    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options), img_path
 
 def update_visualization():
     global dataframe
+    global img_path
     if dataframe is None:
         dataframe = pd.DataFrame()
+    
+    options = []
 
-    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist()), img_path
+    for column in dataframe.columns:
+        if column.endswith("_ASM"):
+            options.append(column)
+        elif column.endswith("_SAM-H"):
+            options.append(column)
+        elif column.endswith("_SAM-L"):
+            options.append(column)
+        elif column.endswith("_SAM-B"):
+            options.append(column)
+
+    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options), img_path
 
 def save_dataframe(directory):
     global dataframe
@@ -239,7 +273,8 @@ def get_image_names(directory, id_column, quality):
     images = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
 
     # Filter according to quality
-    images = list(filter(lambda k: quality in k, images))
+    if quality != "All":
+        images = list(filter(lambda k: quality in k, images))
 
     if isinstance(id_column, list):
         id_column = id_column[0]
@@ -460,7 +495,7 @@ with gr.Blocks() as demo:
                     with gr.Column():
                         image_dir = gr.Text("demo/img/", label="Image directory")
                         id_column = gr.Dropdown(label="ID column", multiselect=False)
-                        quality = gr.Radio(["324w", "2975h"], label="Quality", value="324w")
+                        quality = gr.Radio(["All", "324w", "2975h"], label="Quality", value="All")
                         get_image_names_button = gr.Button("Get image names")
                         get_image_names_button.click(get_image_names, [image_dir, id_column, quality], df)
                         upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, image_dir])
