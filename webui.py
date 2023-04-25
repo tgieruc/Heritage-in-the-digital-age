@@ -117,7 +117,7 @@ def get_data_segmentation(file):
             options.append(column)
         elif "_MDETR" in column:
             options.append(column)
-        elif "_DINO" in column:
+        elif "_dino" in column:
             options.append(column)
 
     return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options)
@@ -133,7 +133,7 @@ def update_segmentation():
             options.append(column)
         elif "_MDETR" in column:
             options.append(column)
-        elif "_DINO" in column:
+        elif "_dino" in column:
             options.append(column)
 
     return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options), img_path
@@ -287,7 +287,7 @@ def get_image_names(directory, id_column, quality):
 
     return dataframe.head()
 
-def run_phrase_grounding(algorithm, image_directory, caption_columns, device):
+def run_phrase_grounding(algorithm, image_directory, caption_columns, device, box_thresh, text_thresh):
     global dataframe
 
     if dataframe is None:
@@ -297,7 +297,7 @@ def run_phrase_grounding(algorithm, image_directory, caption_columns, device):
         # dataframe = run_MDETR(dataframe, image_directory, caption_column, device)
         pass
     elif algorithm == "Grounding DINO":
-        dataframe = run_DINO(dataframe, image_directory, caption_columns, device)
+        dataframe = run_DINO(dataframe, image_directory, caption_columns, device, box_thresh, text_thresh)
 
 
     return dataframe.head()
@@ -565,12 +565,14 @@ with gr.Blocks() as demo:
                     algorithm = gr.Dropdown(["Grounding DINO"], label="Algorithm", multiselect=False, value="Grounding DINO")
                     image_dir = gr.Text("demo/img/", label="Image directory")
                     caption_column = gr.Dropdown(label="Column for caption", multiselect=True)
+                    box_thresh = gr.Slider(minimum=0, maximum=1, step=0.01, value=0.3, label="Box threshold")
+                    text_thresh = gr.Slider(minimum=0, maximum=1, step=0.01, value=0.3, label="Text threshold")
                     devices = ["cpu"]
                     if torch.cuda.is_available():
                         devices.append("cuda")
                     device = gr.Radio(devices, label="Device", value="cuda" if torch.cuda.is_available() else "cpu")
                     run_button = gr.Button("Run")
-                    run_button.click(run_phrase_grounding, [algorithm, image_dir, caption_column, device], df)
+                    run_button.click(run_phrase_grounding, [algorithm, image_dir, caption_column, device, box_thresh, text_thresh], df)
                     upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, image_dir])
 
                 upload_button.upload(get_data_phrase_grounding, upload_button, [df, caption_column])

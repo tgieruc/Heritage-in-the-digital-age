@@ -8,11 +8,8 @@ from GroundingDINO.groundingdino.util.inference import load_model, load_image, p
 
 home_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-def dino_predict(row, model, image_dir, caption_col, device):
+def dino_predict(row, model, image_dir, caption_col, device, box_thresh, text_thresh):
 
-    BOX_TRESHOLD = 0.2
-    TEXT_TRESHOLD = 0.2
-        
     try:
 
         filename = os.path.join(image_dir, row['filename'])
@@ -25,8 +22,8 @@ def dino_predict(row, model, image_dir, caption_col, device):
             model=model, 
             image=image, 
             caption=text_prompt, 
-            box_threshold=BOX_TRESHOLD, 
-            text_threshold=TEXT_TRESHOLD
+            box_threshold=box_thresh, 
+            text_threshold=text_thresh
         )
 
         h, w, _ = image_source.shape
@@ -39,7 +36,7 @@ def dino_predict(row, model, image_dir, caption_col, device):
         print(e)
         return {'bounding_boxes': torch.tensor([]), 'scores': torch.tensor([]), 'labels': []}
 
-def run_DINO(dataframe, image_directory, caption_columns, device):
+def run_DINO(dataframe, image_directory, caption_columns, device, box_thresh, text_thresh):
 
     CONFIG_PATH =  os.path.join(home_dir,"submodules/GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py")
     WEIGHTS_PATH = os.path.join(home_dir,"submodules/GroundingDINO/model/groundingdino_swint_ogc.pth")
@@ -48,6 +45,6 @@ def run_DINO(dataframe, image_directory, caption_columns, device):
 
     for caption_column in caption_columns:
         output_column = f"{caption_column}_dino"
-        dataframe[output_column] = dataframe.progress_apply(lambda x: dino_predict(x, model, image_directory, caption_column, device), axis=1)
+        dataframe[output_column] = dataframe.progress_apply(lambda x: dino_predict(x, model, image_directory, caption_column, device, box_thresh, text_thresh), axis=1)
 
     return dataframe
