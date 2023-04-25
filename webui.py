@@ -113,12 +113,13 @@ def get_data_segmentation(file):
     dataframe = pd.read_pickle(file.name)
     options = []
     for column in dataframe.columns:
-        if "_GLIP" in column:
+        if column.endswith("_GLIP"):
             options.append(column)
-        elif "_MDETR" in column:
+        elif column.endswith("_MDETR"):
             options.append(column)
-        elif "_dino" in column:
+        elif column.endswith("_dino"):
             options.append(column)
+
 
     return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options)
 
@@ -129,11 +130,11 @@ def update_segmentation():
         dataframe = pd.DataFrame()
     options = []
     for column in dataframe.columns:
-        if "_GLIP" in column:
+        if column.endswith("_GLIP"):
             options.append(column)
-        elif "_MDETR" in column:
+        elif column.endswith("_MDETR"):
             options.append(column)
-        elif "_dino" in column:
+        elif column.endswith("_dino"):
             options.append(column)
 
     return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options), img_path
@@ -287,37 +288,70 @@ def get_image_names(directory, id_column, quality):
 
     return dataframe.head()
 
-def run_phrase_grounding(algorithm, image_directory, caption_columns, device, box_thresh, text_thresh):
+def run_phrase_grounding(algorithm, img_dir, caption_columns, device, box_thresh, text_thresh):
     global dataframe
 
     if dataframe is None:
         return "No dataframe loaded"
     
     if algorithm == "MDETR":
-        # dataframe = run_MDETR(dataframe, image_directory, caption_column, device)
+        # dataframe = run_MDETR(dataframe, img_dir, caption_column, device)
         pass
     elif algorithm == "Grounding DINO":
-        dataframe = run_DINO(dataframe, image_directory, caption_columns, device, box_thresh, text_thresh)
+        dataframe, data_columns = run_DINO(dataframe, img_dir, caption_columns, device, box_thresh, text_thresh)
 
 
-    return dataframe.head()
+    return dataframe.head(), visualize_dataframe(img_dir, 10, data_columns, ["Label", "Score", "Bounding box", "Segmentation"], 0.3, caption_columns)
 
-def run_segmentation(algorithm, image_dir, detection_columns, device):
+
+def run_phrase_grounding_preview(algorithm, img_dir, caption_columns, device, box_thresh, text_thresh, n_preview):
+    global dataframe
+    demo_df = dataframe.copy()[:n_preview]
+    if dataframe is None:
+        return "No dataframe loaded"
+    
+    if algorithm == "MDETR":
+        # dataframe = run_MDETR(dataframe, img_dir, caption_column, device)
+        pass
+    elif algorithm == "Grounding DINO":
+        demo_df, data_columns = run_DINO(demo_df, img_dir, caption_columns, device, box_thresh, text_thresh)
+
+
+    return dataframe.head(), visualize_dataframe(img_dir, n_preview, data_columns, ["Label", "Score", "Bounding box", "Segmentation"], 0.3, caption_columns, demo_df)
+
+def run_segmentation(algorithm, img_dir, detection_columns, device):
     global dataframe
 
     if dataframe is None:
         return "No dataframe loaded"
     
     args = SimpleNamespace()
-    args.image_dir = image_dir
+    args.img_dir = img_dir
     args.detection_columns = detection_columns
     args.device = device
     if algorithm == "ASM":
-        dataframe = run_ASM(dataframe, args)
+        dataframe, data_columns = run_ASM(dataframe, args)
     elif algorithm.split("-")[0] == "SAM":
-        dataframe = run_SAM(dataframe, args, algorithm)
+        dataframe, data_columns = run_SAM(dataframe, args, algorithm)
 
-    return dataframe.head()
+    return dataframe.head(), visualize_dataframe(img_dir, 10, data_columns, ["Label", "Score", "Bounding box", "Segmentation"], 0.3, '')
+
+def run_segmentation_preview(algorithm, img_dir, detection_columns, device, n_preview):
+    global dataframe
+    demo_df = dataframe.copy()[:n_preview]
+    if dataframe is None:
+        return "No dataframe loaded"
+    
+    args = SimpleNamespace()
+    args.img_dir = img_dir
+    args.detection_columns = detection_columns
+    args.device = device
+    if algorithm == "ASM":
+        demo_df, data_columns = run_ASM(demo_df, args)
+    elif algorithm.split("-")[0] == "SAM":
+        demo_df, data_columns = run_SAM(demo_df, args, algorithm)
+
+    return dataframe.head(), visualize_dataframe(img_dir, n_preview, data_columns, ["Label", "Score", "Bounding box", "Segmentation"], 0.3, '', demo_df)
 
 def link_labels_to_colors(labels):
     label_set = set(labels)
@@ -400,13 +434,14 @@ def get_latest_temp_folder():
     else:
         return max(folder)
 
-def visualize_dataframe(img_dir, num_imgs, data_columns, visu_selection, fontscale, caption_columns):
+def visualize_dataframe(img_dir, num_imgs, data_columns, visu_selection, fontscale, caption_columns, dataframe_=None):
     global dataframe
+
+    if dataframe_ is None:
+        dataframe_ = dataframe
     
-    if num_imgs > len(dataframe):
-        num_imgs = len(dataframe)
-
-
+    if num_imgs > len(dataframe_):
+        num_imgs = len(dataframe_)
 
     if get_latest_temp_folder() is None:
         folder = 0
@@ -422,7 +457,7 @@ def visualize_dataframe(img_dir, num_imgs, data_columns, visu_selection, fontsca
         try:
             img = cv2.imread(os.path.join(img_dir, row['filename']))
             prefix_html = ""
-            if caption_columns is not None or caption_columns != '':
+            if caption_columns is not None and caption_columns != '':
                 if isinstance(caption_columns, str):
                     caption_columns = [caption_columns]
                 for caption_column in caption_columns:
@@ -453,7 +488,7 @@ def visualize_dataframe(img_dir, num_imgs, data_columns, visu_selection, fontsca
             print(e)
             return ""
         
-    html_img = dataframe[:num_imgs].apply(lambda row: to_html(row, temp_folder, data_columns, caption_columns), axis=1)
+    html_img = dataframe_[:num_imgs].apply(lambda row: to_html(row, temp_folder, data_columns, caption_columns), axis=1)
 
     html = f"<div id='{np.random.rand()}'>"
     html += "".join(html_img)
@@ -530,12 +565,12 @@ with gr.Blocks() as demo:
                         translate_button.click(preprocess, column_to_preprocess, df)
 
                     with gr.Column():
-                        image_dir = gr.Text("demo/img/", label="Image directory")
+                        img_dir = gr.Text("demo/img/", label="Image directory")
                         id_column = gr.Dropdown(label="ID column", multiselect=False)
                         quality = gr.Radio(["All", "324w", "2975h"], label="Quality", value="All")
                         get_image_names_button = gr.Button("Get image names")
-                        get_image_names_button.click(get_image_names, [image_dir, id_column, quality], df)
-                        upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, image_dir])
+                        get_image_names_button.click(get_image_names, [img_dir, id_column, quality], df)
+                        upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, img_dir])
 
                     with gr.Column():
                         save_directory = gr.Text("df_preprocessed.pkl", label="Save directory")
@@ -544,7 +579,7 @@ with gr.Blocks() as demo:
         
                     upload_button.upload(get_data_preprocess, upload_button, [df, column_to_preprocess, id_column])
 
-            tab_preprocessing.select(update_preprocess, [], [df, column_to_preprocess, id_column, image_dir])
+            tab_preprocessing.select(update_preprocess, [], [df, column_to_preprocess, id_column, img_dir])
 
 
     # ------------------------- PHRASE GROUNDING ------------------------- #
@@ -563,7 +598,7 @@ with gr.Blocks() as demo:
 
                 with gr.Column():
                     algorithm = gr.Dropdown(["Grounding DINO"], label="Algorithm", multiselect=False, value="Grounding DINO")
-                    image_dir = gr.Text("demo/img/", label="Image directory")
+                    img_dir = gr.Text("demo/img/", label="Image directory")
                     caption_column = gr.Dropdown(label="Column for caption", multiselect=True)
                     box_thresh = gr.Slider(minimum=0, maximum=1, step=0.01, value=0.3, label="Box threshold")
                     text_thresh = gr.Slider(minimum=0, maximum=1, step=0.01, value=0.3, label="Text threshold")
@@ -571,9 +606,12 @@ with gr.Blocks() as demo:
                     if torch.cuda.is_available():
                         devices.append("cuda")
                     device = gr.Radio(devices, label="Device", value="cuda" if torch.cuda.is_available() else "cpu")
+                
+                with gr.Column():
+                    n_preview = gr.Slider(minimum=1, maximum=10, step=1, value=2, label="Number of previews")
+                    preview_button = gr.Button("Preview")
                     run_button = gr.Button("Run")
-                    run_button.click(run_phrase_grounding, [algorithm, image_dir, caption_column, device, box_thresh, text_thresh], df)
-                    upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, image_dir])
+                    upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, img_dir])
 
                 upload_button.upload(get_data_phrase_grounding, upload_button, [df, caption_column])
 
@@ -582,7 +620,11 @@ with gr.Blocks() as demo:
                     save_button = gr.Button("Save")
                     save_button.click(save_dataframe, save_directory, save_button)
             
-            tab_phrase_grounding.select(update_phrase_grounding, [], [df, caption_column, image_dir])
+            visuHTML = gr.HTML()
+            run_button.click(run_phrase_grounding, [algorithm, img_dir, caption_column, device, box_thresh, text_thresh], [df, visuHTML])
+            preview_button.click(run_phrase_grounding_preview, [algorithm, img_dir, caption_column, device, box_thresh, text_thresh, n_preview], [df, visuHTML])
+
+            tab_phrase_grounding.select(update_phrase_grounding, [], [df, caption_column, img_dir])
 
     # ------------------------- OBJECT SEGMENTATION ------------------------- #
 
@@ -601,7 +643,7 @@ with gr.Blocks() as demo:
                 with gr.Column():
                     # save_options = gr.CheckboxGroup(["PNG", "PICKLE", "PANDAS"], label="Save options", value=["PNG", "PICKLE", "PANDAS"])
                     algorithm = gr.Radio(["ASM", "SAM-B", "SAM-L", "SAM-H"], label="Algorithm", value="SAM-B")
-                    image_dir = gr.Text("demo/img/", label="Image directory")
+                    img_dir = gr.Text("demo/img/", label="Image directory")
                     # output_dir = gr.Text("demo/img_result/", label="Output directory")
                     detection_columns = gr.Dropdown(label="Column for segmentation", multiselect=True)
                     model_dir = os.path.join(os.getcwd(), "model")
@@ -611,18 +653,25 @@ with gr.Blocks() as demo:
                     if torch.cuda.is_available():
                         devices.append("cuda")
                     device = gr.Radio(devices, label="Device", value="cuda" if torch.cuda.is_available() else "cpu")
+
+                with gr.Column():
+                    n_preview = gr.Slider(minimum=1, maximum=10, step=1, value=2, label="Number of previews")
+                    preview_button = gr.Button("Preview")
                     run_button = gr.Button("Run")
-                    run_button.click(run_segmentation, [algorithm, image_dir, detection_columns, device], df)
                 
                 upload_button.upload(get_data_segmentation, upload_button, [df, detection_columns])
-                upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, image_dir])
+                upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, img_dir])
 
                 with gr.Column():
                     save_directory = gr.Text("df_segmented.pkl", label="Save directory")
                     save_button = gr.Button("Save")
                     save_button.click(save_dataframe, save_directory, save_button)
 
-            tab_segmentation.select(update_segmentation, [], [df, detection_columns, image_dir])
+
+            visuHTML = gr.HTML()
+            run_button.click(run_segmentation, [algorithm, img_dir, detection_columns, device], [df, visuHTML])
+            preview_button.click(run_segmentation_preview, [algorithm, img_dir, detection_columns, device, n_preview], [df, visuHTML])
+            tab_segmentation.select(update_segmentation, [], [df, detection_columns, img_dir])
 
     # ------------------------- VISUALIZATION ------------------------- #
 
@@ -638,7 +687,7 @@ with gr.Blocks() as demo:
                     upload_images_button = gr.UploadButton("Upload images in zip", type="file", file_types=["zip"])
 
                 with gr.Column():
-                    image_dir = gr.Text("demo/img/", label="Image directory")
+                    img_dir = gr.Text("demo/img/", label="Image directory")
                     data_columns = gr.Dropdown(label="Column for data", multiselect=True)
                     caption_columns = gr.Dropdown(label="Column for caption", multiselect=True)
                     visu_selection = gr.CheckboxGroup(["Label", "Score", "Bounding box", "Segmentation"], label="Data to visualize", value=["Label", "Score", "Bounding box", "Segmentation"])
@@ -651,11 +700,11 @@ with gr.Blocks() as demo:
             visuHTML = gr.HTML()
 
             upload_button.upload(get_data_visualization, upload_button, [df, data_columns, caption_columns, num_samples])
-            upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, image_dir])
+            upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, img_dir])
 
-            run_button.click(visualize_dataframe, [image_dir, num_samples, data_columns, visu_selection, font_scale, caption_columns], visuHTML)
+            run_button.click(visualize_dataframe, [img_dir, num_samples, data_columns, visu_selection, font_scale, caption_columns], visuHTML)
             save_button.click(save_visualization, [], [save_button])
-            tab_visualization.select(update_visualization, [], [df, data_columns, image_dir, caption_columns, num_samples])
+            tab_visualization.select(update_visualization, [], [df, data_columns, img_dir, caption_columns, num_samples])
 
 
 

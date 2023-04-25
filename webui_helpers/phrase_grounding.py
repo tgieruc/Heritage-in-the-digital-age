@@ -42,9 +42,10 @@ def run_DINO(dataframe, image_directory, caption_columns, device, box_thresh, te
     WEIGHTS_PATH = os.path.join(home_dir,"submodules/GroundingDINO/model/groundingdino_swint_ogc.pth")
 
     model = load_model(CONFIG_PATH, WEIGHTS_PATH)
-
+    output_columns = []
     for caption_column in caption_columns:
         output_column = f"{caption_column}_dino"
         dataframe[output_column] = dataframe.progress_apply(lambda x: dino_predict(x, model, image_directory, caption_column, device, box_thresh, text_thresh), axis=1)
+        output_columns.append(output_column)
 
-    return dataframe
+    return dataframe, output_columns
