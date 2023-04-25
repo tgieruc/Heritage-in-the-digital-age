@@ -9,6 +9,7 @@ import pandas as pd
 import supervision as sv
 import torch
 from tqdm import tqdm
+import shutil
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 import zipfile
 file_dir = os.path.dirname(os.path.realpath(__file__))
@@ -16,8 +17,6 @@ sys.path.append(file_dir)
 sys.path.append(os.path.join(file_dir, "webui_helpers"))
 sys.path.append(os.path.join(file_dir, "submodules"))
 sys.path.append(os.path.join(file_dir, "submodules/GroundingDINO"))
-
-IN_COLAB = 'google.colab' in sys.modules
 
 from webui_helpers.phrase_grounding import run_DINO
 from webui_helpers.segmentation import run_ASM, run_SAM
@@ -156,7 +155,7 @@ def get_data_visualization(file):
         elif column.endswith("_SAM-B"):
             options.append(column)
 
-    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options), img_path
+    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options), gr.Dropdown.update(choices=dataframe.columns.tolist()), gr.Slider.update(minimum=1, maximum=len(dataframe), value=min(10, len(dataframe)), step=1, label="Number of samples")
 
 def update_visualization():
     global dataframe
@@ -176,7 +175,7 @@ def update_visualization():
         elif column.endswith("_SAM-B"):
             options.append(column)
 
-    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options), img_path
+    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options), img_path, gr.Dropdown.update(choices=dataframe.columns.tolist()), gr.Slider.update(minimum=1, maximum=len(dataframe), value=min(10, len(dataframe)), step=1, label="Number of samples")
 
 def save_dataframe(directory):
     global dataframe
@@ -184,13 +183,6 @@ def save_dataframe(directory):
         return "No dataframe loaded"
 
     dataframe.to_pickle(directory)
-
-    if IN_COLAB:
-        try:
-            from google.colab import files
-            files.download(directory)
-        except:
-            pass
 
     return "Dataframe saved!"
 
@@ -245,7 +237,7 @@ def translate_titles(columns, language):
 
     return dataframe
 
-def preprocess(columns="title_en"):
+def preprocess(columns, ):
     def preprocess_text(text):
         if text is None:
             return ''
@@ -253,6 +245,8 @@ def preprocess(columns="title_en"):
         text = text.replace('portrait of ', '')
         text = text.replace('photograph of ', '')
         text = text.replace('black and white photo of ', '')
+        text = text.replace('black and white photograph of ', '')
+        text = text.replace('black and white portrait of ', '')
         text = text.replace('a group of','')
         text = text.replace('group of','')
         text = text.replace('canton of fribourg','')
@@ -274,7 +268,7 @@ def preprocess(columns="title_en"):
         # preprocess the data
         dataframe[f'{column}_preprocessed'] = dataframe[column].progress_apply(lambda x: preprocess_text(x) if pd.notna(x) else '')
 
-    return dataframe
+    return dataframe.head()
 
 def get_image_names(directory, id_column, quality):
     global dataframe
@@ -291,7 +285,7 @@ def get_image_names(directory, id_column, quality):
     # Link the id to the files
     dataframe['filename'] = dataframe[id_column].apply(lambda x:  (list(filter(lambda k: x.lower() in k.lower(), images)))[0].replace(directory + '/','') if len(list(filter(lambda k: x.lower() in k.lower(), images))) > 0 else None)
 
-    return dataframe
+    return dataframe.head()
 
 def run_phrase_grounding(algorithm, image_directory, caption_columns, device):
     global dataframe
@@ -306,7 +300,7 @@ def run_phrase_grounding(algorithm, image_directory, caption_columns, device):
         dataframe = run_DINO(dataframe, image_directory, caption_columns, device)
 
 
-    return dataframe
+    return dataframe.head()
 
 def run_segmentation(algorithm, image_dir, detection_columns, device):
     global dataframe
@@ -323,7 +317,7 @@ def run_segmentation(algorithm, image_dir, detection_columns, device):
     elif algorithm.split("-")[0] == "SAM":
         dataframe = run_SAM(dataframe, args, algorithm)
 
-    return dataframe
+    return dataframe.head()
 
 def link_labels_to_colors(labels):
     label_set = set(labels)
@@ -394,55 +388,89 @@ def visualize_img(img, element, visu_selection, data_column, fontscale):
 
     return img
 
-def visualize_dataframe(img_dir, num_imgs, data_columns, visu_selection, fontscale):
+def get_latest_temp_folder():
+    temp_folder = os.path.join(file_dir, "temp")
+    if not os.path.exists(temp_folder):
+        os.mkdir(temp_folder)
+
+    # get highest folder number name in temp folder
+    folder = [int(folder) for folder in os.listdir(temp_folder) if os.path.isdir(os.path.join(temp_folder, folder))]
+    if len(folder) == 0:
+        return None
+    else:
+        return max(folder)
+
+def visualize_dataframe(img_dir, num_imgs, data_columns, visu_selection, fontscale, caption_columns):
     global dataframe
     
     if num_imgs > len(dataframe):
         num_imgs = len(dataframe)
 
-    # will be using temp to s   tore the images
-    temp_folder = os.path.join(file_dir, "temp")
+
+
+    if get_latest_temp_folder() is None:
+        folder = 0
+    else:
+        folder = get_latest_temp_folder() + 1
+    
+    temp_folder = os.path.join(file_dir, "temp", str(folder))
+
     if not os.path.exists(temp_folder):
         os.mkdir(temp_folder)
+    
+    def to_html(row, temp_folder, data_columns, caption_columns):
+        try:
+            img = cv2.imread(os.path.join(img_dir, row['filename']))
+            prefix_html = ""
+            if caption_columns is not None or caption_columns != '':
+                if isinstance(caption_columns, str):
+                    caption_columns = [caption_columns]
+                for caption_column in caption_columns:
+                    prefix_html += f"<br><p>{row[caption_column]}</p>"
 
-    # get highest number.png in temp folder
-    files = [file.split(".")[0] for file in os.listdir(temp_folder) if file.endswith(".png")]
-    if len(files) == 0:
-        id_offset = 0
-    else:
-        id_offset = max([int(file) for file in files]) + 1
 
-    for i, element in dataframe[:num_imgs].iterrows():
+            save_filename = os.path.join(temp_folder,f"{row.name}.png")
+            if data_columns == '' or data_columns is None:
+                cv2.imwrite(save_filename, img)
+                return f"<img src='file/{save_filename}' height='400'/>"
+            
+            if isinstance(data_columns, str):
+                data_columns = [data_columns]
 
-        img = cv2.imread(os.path.join(img_dir, element['filename']))
+            imgs = []
 
-        if data_columns == '' or data_columns is None:
-            cv2.imwrite(os.path.join(temp_folder, f"{i + id_offset}.png"), img)
-            continue
+            for data_column in data_columns:
+                imgs.append(visualize_img(img.copy(), row, visu_selection, data_column, fontscale))
+
+            if len(imgs) == 0:
+                imgs = [img]
+
+            img = np.concatenate(imgs, axis=1)
+
+            cv2.imwrite(os.path.join(temp_folder, save_filename), img)
+            return prefix_html + f"<img id='{np.random.rand()}' src='file/{save_filename}' height='400'/>"
+        except Exception as e:
+            print(e)
+            return ""
         
-        if isinstance(data_columns, str):
-            data_columns = [data_columns]
-
-        imgs = []
-
-        for data_column in data_columns:
-            imgs.append(visualize_img(img.copy(), element, visu_selection, data_column, fontscale))
-        
-
-        if len(imgs) == 0:
-            imgs = [img]
-        img = np.concatenate(imgs, axis=1)
-
-        
-
-
-        cv2.imwrite(os.path.join(temp_folder, f"{i + id_offset}.png"), img)
+    html_img = dataframe[:num_imgs].apply(lambda row: to_html(row, temp_folder, data_columns, caption_columns), axis=1)
 
     html = f"<div id='{np.random.rand()}'>"
-    for i in range(num_imgs):
-        html += f"<img id='{np.random.rand()}' src='file/{file_dir}/temp/{i + id_offset}.png' height='400'/>"
+    html += "".join(html_img)
     html += "</div>"
+
     return gr.HTML.update(html)
+
+
+def save_visualization():
+    last_folder = get_latest_temp_folder()
+    if last_folder is None:
+        return "No visualization to save"
+    else:
+        temp_folder = os.path.join(file_dir, "temp", str(last_folder))
+        shutil.make_archive(temp_folder, 'zip', temp_folder)
+        return f"Saved to {temp_folder}.zip"
+    
 
 # ------------------------- GRADIO ------------------------- #
 
@@ -517,6 +545,7 @@ with gr.Blocks() as demo:
                     upload_button.upload(get_data_preprocess, upload_button, [df, column_to_preprocess, id_column])
 
             tab_preprocessing.select(update_preprocess, [], [df, column_to_preprocess, id_column, image_dir])
+
 
     # ------------------------- PHRASE GROUNDING ------------------------- #
 
@@ -609,19 +638,23 @@ with gr.Blocks() as demo:
                 with gr.Column():
                     image_dir = gr.Text("demo/img/", label="Image directory")
                     data_columns = gr.Dropdown(label="Column for data", multiselect=True)
+                    caption_columns = gr.Dropdown(label="Column for caption", multiselect=True)
                     visu_selection = gr.CheckboxGroup(["Label", "Score", "Bounding box", "Segmentation"], label="Data to visualize", value=["Label", "Score", "Bounding box", "Segmentation"])
                     num_samples = gr.Slider(minimum=1, maximum=100, value=10, step=1, label="Number of samples")
                     font_scale = gr.Slider(minimum=0.1, maximum=2, value=0.5, step=0.1, label="Font scale")
-                    run_button = gr.Button("Run")
+                    run_button = gr.Button("Visualize")
+                    save_button = gr.Button("Save images")
+
             
             visuHTML = gr.HTML()
 
-            upload_button.upload(get_data_visualization, upload_button, [df, data_columns])
+            upload_button.upload(get_data_visualization, upload_button, [df, data_columns, caption_columns, num_samples])
             upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, image_dir])
 
-            run_button.click(visualize_dataframe, [image_dir, num_samples, data_columns, visu_selection, font_scale], visuHTML)
+            run_button.click(visualize_dataframe, [image_dir, num_samples, data_columns, visu_selection, font_scale, caption_columns], visuHTML)
+            save_button.click(save_visualization, [], [save_button])
+            tab_visualization.select(update_visualization, [], [df, data_columns, image_dir, caption_columns, num_samples])
 
-            tab_visualization.select(update_visualization, [], [df, data_columns, image_dir])
 
 
 

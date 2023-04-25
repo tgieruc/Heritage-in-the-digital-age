@@ -13,18 +13,20 @@ from segment_anything import sam_model_registry, SamPredictor
 
 
 def ASM_apply_segmentation(row, segmentation_model, args, col):
-    filename = os.path.join(args.image_dir, row['filename'])
-    if not os.path.exists(filename):
-        return []
-
-    image = np.array(Image.open(filename).convert('RGB'))
-
-
     data = deepcopy(row[col])
 
-    segmentation_masks = segmentation_model.single_inference(image, data)
+    try:
 
-    data['segmentation'] = segmentation_masks
+        filename = os.path.join(args.image_dir, row['filename'])
+
+        image = np.array(Image.open(filename).convert('RGB'))
+
+        segmentation_masks = segmentation_model.single_inference(image, data)
+
+        data['segmentation'] = segmentation_masks
+    
+    except Exception as e:
+        print(e)
 
     return data
 
@@ -50,25 +52,32 @@ def run_ASM(dataframe, args):
 
 def SAM_apply_segmentation(row, predictor, args, col):
 
-    image = np.array(Image.open(os.path.join(args.image_dir, row['filename'])).convert('RGB'))
-    predictor.set_image(image)
-
     data = deepcopy(row[col])
-    bounding_boxes = data["bounding_boxes"]
 
-    masks = []
-    for box in bounding_boxes:
-        input_box = box.int().numpy().flatten()
-        mask, _, _ = predictor.predict(
-            point_coords=None,
-            point_labels=None,
-            box=input_box,
-            multimask_output=False,
-        )
-        masks.append(torch.from_numpy(mask))
-    print(torch.stack(masks).shape)
-    data['segmentation'] = torch.stack(masks).squeeze(1).squeeze(1)
+    try:
+
+        image_filename = os.path.join(args.image_dir, row['filename'])
+
+        image = np.array(Image.open(image_filename).convert('RGB'))
+        predictor.set_image(image)
+
+        bounding_boxes = data["bounding_boxes"]
+
+        masks = []
+        for box in bounding_boxes:
+            input_box = box.int().numpy().flatten()
+            mask, _, _ = predictor.predict(
+                point_coords=None,
+                point_labels=None,
+                box=input_box,
+                multimask_output=False,
+            )
+            masks.append(torch.from_numpy(mask))
+        data['segmentation'] = torch.stack(masks).squeeze(1).squeeze(1)
     
+    except Exception as e:
+        print(e)
+        
     return data
 
 def run_SAM(dataframe, args, algorithm):

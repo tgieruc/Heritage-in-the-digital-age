@@ -10,30 +10,34 @@ home_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def dino_predict(row, model, image_dir, caption_col, device):
 
-    BOX_TRESHOLD = 0.35
-    TEXT_TRESHOLD = 0.25
+    BOX_TRESHOLD = 0.2
+    TEXT_TRESHOLD = 0.2
+        
+    try:
 
-    filename = os.path.join(image_dir, row['filename'])
+        filename = os.path.join(image_dir, row['filename'])
 
-    assert os.path.exists(filename), f"Image {filename} does not exist"
+        text_prompt = row[caption_col]
 
-    text_prompt = row[caption_col]
+        image_source, image = load_image(filename)
 
-    image_source, image = load_image(filename)
+        boxes, logits, labels = predict(
+            model=model, 
+            image=image, 
+            caption=text_prompt, 
+            box_threshold=BOX_TRESHOLD, 
+            text_threshold=TEXT_TRESHOLD
+        )
 
-    boxes, logits, labels = predict(
-        model=model, 
-        image=image, 
-        caption=text_prompt, 
-        box_threshold=BOX_TRESHOLD, 
-        text_threshold=TEXT_TRESHOLD
-    )
+        h, w, _ = image_source.shape
+        boxes = boxes * torch.Tensor([w, h, w, h])
+        xyxy = box_convert(boxes=boxes, in_fmt="cxcywh", out_fmt="xyxy").int()
 
-    h, w, _ = image_source.shape
-    boxes = boxes * torch.Tensor([w, h, w, h])
-    xyxy = box_convert(boxes=boxes, in_fmt="cxcywh", out_fmt="xyxy").int()
+        return {'bounding_boxes': xyxy, 'scores': logits, 'labels': labels}
 
-    return {'bounding_boxes': xyxy, 'scores': logits, 'labels': labels}
+    except Exception as e:
+        print(e)
+        return {'bounding_boxes': torch.tensor([]), 'scores': torch.tensor([]), 'labels': []}
 
 def run_DINO(dataframe, image_directory, caption_columns, device):
 
