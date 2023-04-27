@@ -4,7 +4,7 @@ import torch
 from torchvision.ops import box_convert
 tqdm.pandas()
 
-from GroundingDINO.groundingdino.util.inference import load_model, load_image, predict, annotate
+from GroundingDINO.groundingdino.util.inference import load_model, load_image, predict
 
 home_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -36,7 +36,7 @@ def dino_predict(row, model, image_dir, caption_col, device, box_thresh, text_th
         print(e)
         return {'bounding_boxes': torch.tensor([]), 'scores': torch.tensor([]), 'labels': []}
 
-def run_DINO(dataframe, image_directory, caption_columns, device, box_thresh, text_thresh):
+def run_DINO(dataframe, image_directory, caption_columns, device, box_thresh, text_thresh, progress):
 
     CONFIG_PATH =  os.path.join(home_dir,"submodules/GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py")
     WEIGHTS_PATH = os.path.join(home_dir,"submodules/GroundingDINO/model/groundingdino_swint_ogc.pth")

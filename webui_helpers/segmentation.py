@@ -17,7 +17,7 @@ def ASM_apply_segmentation(row, segmentation_model, args, col):
 
     try:
 
-        filename = os.path.join(args.image_dir, row['filename'])
+        filename = os.path.join(args.img_dir, row['filename'])
 
         image = np.array(Image.open(filename).convert('RGB'))
 
@@ -31,7 +31,7 @@ def ASM_apply_segmentation(row, segmentation_model, args, col):
     return data
 
 
-def run_ASM(dataframe, args):
+def run_ASM(dataframe, args, progress):
     tqdm.pandas()
 
     if isinstance(args.detection_columns, str):
@@ -43,11 +43,13 @@ def run_ASM(dataframe, args):
         gdown.download('https://drive.google.com/uc?id=1OWH7arM-qllbCJwqkMVy9NKWHB398iol', model_path, quiet=False)
 
     model = SegmentationModel(model_path, device=args.device)
-    
+
+    output_columns = []
     for col in args.detection_columns:
         dataframe[f'{col}_ASM'] = dataframe.progress_apply(lambda x: ASM_apply_segmentation(x, model, args, col), axis=1)
-    
-    return dataframe
+        output_columns.append(f'{col}_ASM')
+
+    return dataframe, output_columns
 
 
 def SAM_apply_segmentation(row, predictor, args, col):
@@ -56,7 +58,7 @@ def SAM_apply_segmentation(row, predictor, args, col):
 
     try:
 
-        image_filename = os.path.join(args.image_dir, row['filename'])
+        image_filename = os.path.join(args.img_dir, row['filename'])
 
         image = np.array(Image.open(image_filename).convert('RGB'))
         predictor.set_image(image)
@@ -80,7 +82,7 @@ def SAM_apply_segmentation(row, predictor, args, col):
         
     return data
 
-def run_SAM(dataframe, args, algorithm):
+def run_SAM(dataframe, args, algorithm, progress):
     weights_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'model')
     if not os.path.exists(weights_dir):
         os.makedirs(weights_dir)
@@ -117,7 +119,9 @@ def run_SAM(dataframe, args, algorithm):
     if isinstance(columns, str):
         columns = [columns]
 
+    output_columns = []
     for cols in columns:
         dataframe[f'{cols}_{algorithm}'] = dataframe.progress_apply(lambda x: SAM_apply_segmentation(x, predictor, args, cols), axis=1)
+        output_columns.append(f'{cols}_{algorithm}')
 
-    return dataframe
+    return dataframe, output_columns

@@ -200,7 +200,7 @@ def upload_images(file):
 
 #----------------- Module functions -----------------#
 
-def translate_titles(columns, language):
+def translate_titles(columns, language, progress=gr.Progress(track_tqdm=True)):
     def translate(sentence, model, tokenizer, device):
         input_ids = tokenizer(sentence, return_tensors="pt").input_ids.to(device)
         outputs = model.generate(input_ids=input_ids, num_beams=5, num_return_sequences=1)
@@ -271,14 +271,10 @@ def preprocess(columns, ):
 
     return dataframe.head()
 
-def get_image_names(directory, id_column, quality):
+def get_image_names(directory, id_column):
     global dataframe
 
     images = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
-
-    # Filter according to quality
-    if quality != "All":
-        images = list(filter(lambda k: quality in k, images))
 
     if isinstance(id_column, list):
         id_column = id_column[0]
@@ -288,7 +284,7 @@ def get_image_names(directory, id_column, quality):
 
     return dataframe.head()
 
-def run_phrase_grounding(algorithm, img_dir, caption_columns, device, box_thresh, text_thresh):
+def run_phrase_grounding(algorithm, img_dir, caption_columns, device, box_thresh, text_thresh, progress=gr.Progress(track_tqdm=True)):
     global dataframe
 
     if dataframe is None:
@@ -298,7 +294,7 @@ def run_phrase_grounding(algorithm, img_dir, caption_columns, device, box_thresh
         # dataframe = run_MDETR(dataframe, img_dir, caption_column, device)
         pass
     elif algorithm == "Grounding DINO":
-        dataframe, data_columns = run_DINO(dataframe, img_dir, caption_columns, device, box_thresh, text_thresh)
+        dataframe, data_columns = run_DINO(dataframe, img_dir, caption_columns, device, box_thresh, text_thresh, progress)
 
 
     return dataframe.head(), visualize_dataframe(img_dir, 10, data_columns, ["Label", "Score", "Bounding box", "Segmentation"], 0.3, caption_columns)
@@ -319,7 +315,7 @@ def run_phrase_grounding_preview(algorithm, img_dir, caption_columns, device, bo
 
     return dataframe.head(), visualize_dataframe(img_dir, n_preview, data_columns, ["Label", "Score", "Bounding box", "Segmentation"], 0.3, caption_columns, demo_df)
 
-def run_segmentation(algorithm, img_dir, detection_columns, device):
+def run_segmentation(algorithm, img_dir, detection_columns, device, progress=gr.Progress(track_tqdm=True)):
     global dataframe
 
     if dataframe is None:
@@ -330,9 +326,9 @@ def run_segmentation(algorithm, img_dir, detection_columns, device):
     args.detection_columns = detection_columns
     args.device = device
     if algorithm == "ASM":
-        dataframe, data_columns = run_ASM(dataframe, args)
+        dataframe, data_columns = run_ASM(dataframe, args, progress)
     elif algorithm.split("-")[0] == "SAM":
-        dataframe, data_columns = run_SAM(dataframe, args, algorithm)
+        dataframe, data_columns = run_SAM(dataframe, args, algorithm, progress)
 
     return dataframe.head(), visualize_dataframe(img_dir, 10, data_columns, ["Label", "Score", "Bounding box", "Segmentation"], 0.3, '')
 
@@ -530,8 +526,8 @@ with gr.Blocks() as demo:
                     upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, nothing])
 
                 with gr.Column():
-                    language = gr.Dropdown(["French", "German", "Italian", "Spanish", "Dutch", "Portuguese", "Russian"], label="Language", value="French")
-                    column_to_translate = gr.Dropdown(label="Column(s) to translate", multiselect=True)
+                    language = gr.Dropdown(["French", "German", "Italian", "Spanish", "Dutch", "Portuguese", "Russian"], label="Language", value="French", info="Original language to translate to English")
+                    column_to_translate = gr.Dropdown(label="Column(s) to translate", multiselect=True, info="Select the column(s) to translate to English")
                     upload_button.upload(get_data_translate, upload_button, [df, column_to_translate])
 
                     # column_to_translate = gr.Text("title", label="Column to translate")
@@ -539,7 +535,7 @@ with gr.Blocks() as demo:
                     translate_button.click(translate_titles, [column_to_translate, language], df)
 
                 with gr.Column():
-                    save_directory = gr.Text("df_translated.pkl", label="Save directory")
+                    save_directory = gr.Text("df_translated.pkl", label="Save path", info="Path to save the translated dataframe")
                     save_button = gr.Button("Save")
                     save_button.click(save_dataframe, save_directory, save_button)
 
@@ -560,20 +556,20 @@ with gr.Blocks() as demo:
                         upload_images_button = gr.UploadButton("Upload images in zip", type="file")
 
                     with gr.Column():
-                        column_to_preprocess = gr.Dropdown(label="Column(s) to preprocess", multiselect=True)
+                        column_to_preprocess = gr.Dropdown(label="Column(s) to preprocess", multiselect=True, info="Select the column(s) to preprocess")
                         translate_button = gr.Button("Preprocess")
                         translate_button.click(preprocess, column_to_preprocess, df)
 
                     with gr.Column():
-                        img_dir = gr.Text("demo/img/", label="Image directory")
-                        id_column = gr.Dropdown(label="ID column", multiselect=False)
-                        quality = gr.Radio(["All", "324w", "2975h"], label="Quality", value="All")
+                        img_dir = gr.Text("demo/img/", label="Image directory", info="Path to the image directory")
+                        id_column = gr.Dropdown(label="ID column", multiselect=False, info="Select the column containing the ID of the image")
+                        #gr.Radio(["All", "324w", "2975h"], label="Quality", value="All", info="")
                         get_image_names_button = gr.Button("Get image names")
-                        get_image_names_button.click(get_image_names, [img_dir, id_column, quality], df)
+                        get_image_names_button.click(get_image_names, [img_dir, id_column], df)
                         upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, img_dir])
 
                     with gr.Column():
-                        save_directory = gr.Text("df_preprocessed.pkl", label="Save directory")
+                        save_directory = gr.Text("df_preprocessed.pkl", label="Save path", info="Path to save the preprocessed dataframe")
                         save_button = gr.Button("Save")
                         save_button.click(save_dataframe, save_directory, save_button)
         
@@ -597,18 +593,20 @@ with gr.Blocks() as demo:
                     upload_images_button = gr.UploadButton("Upload images in zip", type="file", file_types=["zip"])
 
                 with gr.Column():
-                    algorithm = gr.Dropdown(["Grounding DINO"], label="Algorithm", multiselect=False, value="Grounding DINO")
-                    img_dir = gr.Text("demo/img/", label="Image directory")
-                    caption_column = gr.Dropdown(label="Column for caption", multiselect=True)
+                    algorithm = gr.Dropdown(["Grounding DINO"], label="Algorithm", multiselect=False, value="Grounding DINO", info="Select the algorithm to use for phrase grounding")
+                    img_dir = gr.Text("demo/img/", label="Image directory", info="Path to the image directory")
+                    caption_column = gr.Dropdown(label="Column for caption", multiselect=True, info="Select the column containing the caption to ground")
+
+                   
+                
+                with gr.Column():
                     box_thresh = gr.Slider(minimum=0, maximum=1, step=0.01, value=0.3, label="Box threshold")
                     text_thresh = gr.Slider(minimum=0, maximum=1, step=0.01, value=0.3, label="Text threshold")
                     devices = ["cpu"]
                     if torch.cuda.is_available():
                         devices.append("cuda")
-                    device = gr.Radio(devices, label="Device", value="cuda" if torch.cuda.is_available() else "cpu")
-                
-                with gr.Column():
-                    n_preview = gr.Slider(minimum=1, maximum=10, step=1, value=2, label="Number of previews")
+                    device = gr.Radio(devices, label="Device", value="cuda" if torch.cuda.is_available() else "cpu", info="Device to use for inference")
+                    n_preview = gr.Slider(minimum=1, maximum=10, step=1, value=2, label="Number of previews", info="Number of previews to show")
                     preview_button = gr.Button("Preview")
                     run_button = gr.Button("Run")
                     upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, img_dir])
@@ -616,7 +614,7 @@ with gr.Blocks() as demo:
                 upload_button.upload(get_data_phrase_grounding, upload_button, [df, caption_column])
 
                 with gr.Column():
-                    save_directory = gr.Text("df_phrase_grounding.pkl", label="Save directory")
+                    save_directory = gr.Text("df_phrase_grounding.pkl", label="Save path", info="Path to save the phrase grounding dataframe")
                     save_button = gr.Button("Save")
                     save_button.click(save_dataframe, save_directory, save_button)
             
@@ -642,20 +640,21 @@ with gr.Blocks() as demo:
 
                 with gr.Column():
                     # save_options = gr.CheckboxGroup(["PNG", "PICKLE", "PANDAS"], label="Save options", value=["PNG", "PICKLE", "PANDAS"])
-                    algorithm = gr.Radio(["ASM", "SAM-B", "SAM-L", "SAM-H"], label="Algorithm", value="SAM-B")
-                    img_dir = gr.Text("demo/img/", label="Image directory")
+                    algorithm = gr.Radio(["ASM", "SAM-B", "SAM-L", "SAM-H"], label="Algorithm", value="SAM-B", info="Select the algorithm to use for object segmentation")
+                    img_dir = gr.Text("demo/img/", label="Image directory", info="Path to the image directory")
                     # output_dir = gr.Text("demo/img_result/", label="Output directory")
-                    detection_columns = gr.Dropdown(label="Column for segmentation", multiselect=True)
+                   
+                with gr.Column():
+                    detection_columns = gr.Dropdown(label="Column(s) for segmentation", multiselect=True, info="Select the column(s) containing the bounding boxes to segment")
                     model_dir = os.path.join(os.getcwd(), "model")
                     if not os.path.exists(model_dir):
                         os.mkdir(model_dir)
                     devices = ["cpu"]
                     if torch.cuda.is_available():
                         devices.append("cuda")
-                    device = gr.Radio(devices, label="Device", value="cuda" if torch.cuda.is_available() else "cpu")
+                    device = gr.Radio(devices, label="Device", value="cuda" if torch.cuda.is_available() else "cpu", info="Device to use for inference")
 
-                with gr.Column():
-                    n_preview = gr.Slider(minimum=1, maximum=10, step=1, value=2, label="Number of previews")
+                    n_preview = gr.Slider(minimum=1, maximum=10, step=1, value=2, label="Number of previews", info="Number of previews to show")
                     preview_button = gr.Button("Preview")
                     run_button = gr.Button("Run")
                 
@@ -663,7 +662,7 @@ with gr.Blocks() as demo:
                 upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, img_dir])
 
                 with gr.Column():
-                    save_directory = gr.Text("df_segmented.pkl", label="Save directory")
+                    save_directory = gr.Text("df_segmented.pkl", label="Save path", info="Path to save the segmentation dataframe")
                     save_button = gr.Button("Save")
                     save_button.click(save_dataframe, save_directory, save_button)
 
@@ -687,12 +686,14 @@ with gr.Blocks() as demo:
                     upload_images_button = gr.UploadButton("Upload images in zip", type="file", file_types=["zip"])
 
                 with gr.Column():
-                    img_dir = gr.Text("demo/img/", label="Image directory")
-                    data_columns = gr.Dropdown(label="Column for data", multiselect=True)
-                    caption_columns = gr.Dropdown(label="Column for caption", multiselect=True)
-                    visu_selection = gr.CheckboxGroup(["Label", "Score", "Bounding box", "Segmentation"], label="Data to visualize", value=["Label", "Score", "Bounding box", "Segmentation"])
-                    num_samples = gr.Slider(minimum=1, maximum=100, value=10, step=1, label="Number of samples")
-                    font_scale = gr.Slider(minimum=0.1, maximum=2, value=0.5, step=0.1, label="Font scale")
+                    img_dir = gr.Text("demo/img/", label="Image directory", info="Path to the image directory")
+                    data_columns = gr.Dropdown(label="Column(s) for data", multiselect=True, info="Select the column(s) containing the data to visualize")
+                    caption_columns = gr.Dropdown(label="Column for caption", multiselect=True, info="Select the column containing the caption to visualize (optional)")
+                    
+                with gr.Column():
+                    visu_selection = gr.CheckboxGroup(["Label", "Score", "Bounding box", "Segmentation"], label="Data to visualize", value=["Label", "Score", "Bounding box", "Segmentation"], info="Select the data to visualize")
+                    num_samples = gr.Slider(minimum=1, maximum=100, value=10, step=1, label="Number of samples", info="Number of samples to visualize")
+                    font_scale = gr.Slider(minimum=0.1, maximum=2, value=0.3, step=0.1, label="Font scale", info="Font scale for the visualization")
                     run_button = gr.Button("Visualize")
                     save_button = gr.Button("Save images")
 
@@ -709,6 +710,6 @@ with gr.Blocks() as demo:
 
 
 
-demo.launch(share=True)
+demo.queue().launch(share=True)
 
 
