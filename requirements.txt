@@ -6,4 +6,5 @@ timm
 sentencepiece
 sacremoses
 scikit-image
+salesforce-lavis
 supervision==0.5.2

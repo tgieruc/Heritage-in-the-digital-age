@@ -11,7 +11,9 @@ import torch
 from tqdm import tqdm
 import shutil
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+from lavis.models import load_model_and_preprocess
 import zipfile
+from PIL import Image
 file_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(file_dir)
 sys.path.append(os.path.join(file_dir, "webui_helpers"))
@@ -107,6 +109,23 @@ def update_phrase_grounding():
             options.append(column)
 
     return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options), img_path
+
+
+def get_data_captioning(file):
+    global dataframe
+    dataframe = pd.read_pickle(file.name)
+
+    return dataframe.head()
+
+def update_captioning():
+    global dataframe
+    global img_path
+    if dataframe is None:
+        dataframe = pd.DataFrame()
+
+
+    return dataframe.head(), img_path
+
 
 def get_data_segmentation(file):
     global dataframe
@@ -314,6 +333,46 @@ def run_phrase_grounding_preview(algorithm, img_dir, caption_columns, device, bo
 
 
     return dataframe.head(), visualize_dataframe(img_dir, n_preview, data_columns, ["Label", "Score", "Bounding box", "Segmentation"], 0.3, caption_columns, demo_df)
+
+
+def caption_once(row, model, vis_processors, img_dir, device):
+        img = Image.open(os.path.join(img_dir, row['filename']))
+        img = img.convert('RGB')
+        img = vis_processors["eval"](img).unsqueeze(0).to(device)
+        return model.generate({"image": img})[0]
+
+def run_captioning(algorithm, img_dir, device, progress=gr.Progress(track_tqdm=True)):
+    global dataframe
+
+    if dataframe is None:
+        return "No dataframe loaded"
+    
+    model_name = algorithm.split("-")[0]
+    model_type = algorithm.split("-")[1]
+    device = torch.device(device)
+    model, vis_processors, _ = load_model_and_preprocess(name=model_name, model_type=model_type, is_eval=True, device=device)
+    
+    dataframe[f"caption_{algorithm}"] = dataframe.progress_apply(lambda x: caption_once(x, model, vis_processors, img_dir, device), axis=1)
+
+    return dataframe, dataframe.head().to_html()
+
+def run_captioning_preview(algorithm, img_dir, device, n_preview, progress=gr.Progress(track_tqdm=True)):
+    global dataframe
+    if dataframe is None:
+        return "No dataframe loaded"
+    
+    demo_df = dataframe.copy()[:n_preview]
+
+    model_name = algorithm.split("-")[0]
+    model_type = algorithm.split("-")[1]
+    device = torch.device(device)
+
+    model, vis_processors, _ = load_model_and_preprocess(name=model_name, model_type=model_type, is_eval=True, device=device)
+    
+    demo_df[f"caption_{algorithm}"] = demo_df.progress_apply(lambda x: caption_once(x, model, vis_processors, img_dir, device), axis=1)
+
+    return demo_df.head().to_html()
+
 
 def run_segmentation(algorithm, img_dir, detection_columns, device, progress=gr.Progress(track_tqdm=True)):
     global dataframe
@@ -540,6 +599,55 @@ with gr.Blocks() as demo:
                     save_button.click(save_dataframe, save_directory, save_button)
 
             tab_translate.select(update_translate, [], [df, column_to_translate, nothing])
+
+    #------------------------ CAPTIONING ------------------------#
+
+    with gr.Tab("Captioning") as tab_captioning:
+
+        with gr.Column():
+
+            df = gr.DataFrame()
+
+            with gr.Row():
+
+                with gr.Column():
+                    upload_button = gr.UploadButton("Click to Upload the dataframe", type="file")
+                    upload_images_button = gr.UploadButton("Upload images in zip", type="file", file_types=["zip"])
+
+                with gr.Column():
+                    available_algorithms = ["blip_caption-base_coco", 
+                                            "blip2_opt-pretrain_opt2.7b",
+                                            "blip2_opt-pretrain_opt6.7b",
+                                            "blip2_opt-caption_coco_opt2.7b",
+                                            "blip2_opt-caption_coco_opt6.7b",
+                                            "blip2_t5-pretrain_flant5xl",
+                                            "blip2_t5-caption_coco_flant5xl",
+                                            "blip2_t5-pretrain_flant5xxl",
+                                            ]
+                    algorithm = gr.Dropdown(available_algorithms, label="Algorithm", multiselect=False, value="blip_caption-base_coco", info="Select the algorithm to use for captioning")
+                    img_dir = gr.Text("demo/img/", label="Image directory", info="Path to the image directory")                   
+                
+                with gr.Column():
+                    devices = ["cpu"]
+                    if torch.cuda.is_available():
+                        devices.append("cuda")
+                    device = gr.Radio(devices, label="Device", value="cuda" if torch.cuda.is_available() else "cpu", info="Device to use for inference")
+                    n_preview = gr.Slider(minimum=1, maximum=10, step=1, value=2, label="Number of previews", info="Number of previews to show")
+                    preview_button = gr.Button("Preview")
+                    run_button = gr.Button("Run")
+                    upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, img_dir])
+
+                upload_button.upload(get_data_captioning, upload_button, df)
+
+                with gr.Column():
+                    save_directory = gr.Text("df_captioning.pkl", label="Save path", info="Path to save the captioned dataframe")
+                    save_button = gr.Button("Save")
+                    save_button.click(save_dataframe, save_directory, save_button)
+            
+            review_html = gr.HTML("")
+            preview_button.click(run_captioning_preview, [algorithm, img_dir, device, n_preview], review_html)
+            run_button.click(run_captioning, [algorithm, img_dir, device], [df, review_html])
+            tab_captioning.select(update_captioning, [], [df, img_dir])
 
     # ------------------------- PREPROCESS ------------------------- #
 
