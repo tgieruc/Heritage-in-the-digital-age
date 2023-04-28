@@ -17,7 +17,7 @@ WebUI designed for **augmenting** digitized historical images by **generating ca
 ## :bulb: Highlights
 * Simple WebUI using <a href=https://gradio.app/><img src="https://warehouse-camo.ingress.cmh1.psfhosted.org/a95ef5913dc4cc84d2155ff690a0fa0d4c33d7e2/68747470733a2f2f7261772e67697468756275736572636f6e74656e742e636f6d2f67726164696f2d6170702f67726164696f2f6d61696e2f726561646d655f66696c65732f67726164696f2e737667" height=20px alt="Gradio"/></a>
 * Caption generation using BLIP and BLIP2 <a href=https://github.com/salesforce/LAVIS ><img src="https://github.com/salesforce/LAVIS/raw/main/docs/_static/logo_final.png" height=20px alt="LAVIS"/></a>
-* Translation of captions to English using <a src=https://huggingface.co/Helsinki-NLP>Helsinki-NLP<img src=https://huggingface.co/datasets/huggingface/brand-assets/resolve/main/hf-logo.png height=20px alt="HuggingFace"/></a>
+* Translation of captions to English using <a href=https://huggingface.co/Helsinki-NLP>Helsinki-NLP<img src=https://huggingface.co/datasets/huggingface/brand-assets/resolve/main/hf-logo.png height=20px alt="HuggingFace"/></a>
 * Grounding of captions using [:sauropod: groundingDINO](https://github.com/IDEA-Research/GroundingDINO)
 * Segmentation of images using <a href=https://github.com/facebookresearch/segment-anything>Segment Anything <img src=https://seeklogo.com/images/M/meta-icon-new-facebook-2021-logo-83520C311D-seeklogo.com.png height=20px alt="Meta"></a> and  <a href=https://huggingface.co/spaces/tgieruc/agnostic-segmentation)>Agnostic segmentation <img src=https://huggingface.co/datasets/huggingface/brand-assets/resolve/main/hf-logo.png height=20px alt="HuggingFace"/></a>
 * Visualization of the results
