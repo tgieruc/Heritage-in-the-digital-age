@@ -36,15 +36,28 @@ def dino_predict(row, model, image_dir, caption_col, device, box_thresh, text_th
         print(e)
         return {'bounding_boxes': torch.tensor([]), 'scores': torch.tensor([]), 'labels': []}
 
-def run_DINO(dataframe, image_directory, caption_columns, device, box_thresh, text_thresh, progress):
+def run_DINO(algorithm, dataframe, image_directory, caption_columns, device, box_thresh, text_thresh, progress):
 
-    CONFIG_PATH =  os.path.join(home_dir,"submodules/GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py")
-    WEIGHTS_PATH = os.path.join(home_dir,"submodules/GroundingDINO/model/groundingdino_swint_ogc.pth")
+    model = algorithm.split("-")[1]
+    if model == "SwinT":
+        CONFIG_PATH =  os.path.join(home_dir,"submodules/GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py")
+        WEIGHTS_PATH = os.path.join(home_dir,"submodules/GroundingDINO/model/groundingdino_swint_ogc.pth")
+        if not os.path.isfile(WEIGHTS_PATH):
+            print('Downloading GroundingDINO SwinT model weights...')
+            os.system(f'wget https://github.com/IDEA-Research/GroundingDINO/releases/download/v0.1.0-alpha/groundingdino_swint_ogc.pth -O {WEIGHTS_PATH}')
+
+    elif model == "SwinB":
+        CONFIG_PATH =  os.path.join(home_dir,"submodules/GroundingDINO/groundingdino/config/GroundingDINO_SwinB.cfg.py")
+        WEIGHTS_PATH = os.path.join(home_dir,"submodules/GroundingDINO/model/groundingdino_swinb_cogcoor.pth")
+        if not os.path.isfile(WEIGHTS_PATH):
+            print('Downloading GroundingDINO SwinB model weights...')
+            os.system(f'wget https://github.com/IDEA-Research/GroundingDINO/releases/download/v0.1.0-alpha2/groundingdino_swinb_cogcoor.pth -O {WEIGHTS_PATH}')
+
 
     model = load_model(CONFIG_PATH, WEIGHTS_PATH)
     output_columns = []
     for caption_column in caption_columns:
-        output_column = f"{caption_column}_dino"
+        output_column = f"{caption_column}-{algorithm}"
         dataframe[output_column] = dataframe.progress_apply(lambda x: dino_predict(x, model, image_directory, caption_column, device, box_thresh, text_thresh), axis=1)
         output_columns.append(output_column)
 

@@ -55,36 +55,38 @@ def get_data_preprocess(file):
     global dataframe
     dataframe = pd.read_pickle(file.name)
     options_preprocess = []
-    options_id = ""
 
     if "title_en" in dataframe.columns:
         options_preprocess.append("title_en")
     if "caption" in dataframe.columns:
         options_preprocess.append("caption")
     
-    for column in dataframe.columns:
-        if column.endswith("_id"):
-            options_id = column
 
-    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_preprocess), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_id)
+
+    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_preprocess)
 
 def update_preprocess():
     global dataframe
     if dataframe is None:
         dataframe = pd.DataFrame()
     options_preprocess = []
-    options_id = ""
 
-    if "title_en" in dataframe.columns:
-        options_preprocess.append("title_en")
-    if "caption" in dataframe.columns:
-        options_preprocess.append("caption")
-    
+
     for column in dataframe.columns:
-        if column.endswith("_id"):
-            options_id = column
+        if column.endswith("_en"):
+            options_preprocess.append(column)
+        if "caption" in column and \
+            not column.endswith("_preprocessed") and \
+            "GLIP" not in column and \
+            "MDETR" not in column and \
+            "dino" not in column and \
+            "ASM" not in column and \
+            "SAM" not in column:
 
-    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_preprocess), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_id), img_path
+            options_preprocess.append(column)
+    
+
+    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_preprocess),  img_path
 
 def get_data_phrase_grounding(file):
     global dataframe
@@ -114,17 +116,26 @@ def update_phrase_grounding():
 def get_data_captioning(file):
     global dataframe
     dataframe = pd.read_pickle(file.name)
+    options_id = ""
 
-    return dataframe.head()
+    for column in dataframe.columns:
+        if column.endswith("_id"):
+            options_id = column
 
+    return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_id)
 def update_captioning():
     global dataframe
     global img_path
+    options_id = ""
+
     if dataframe is None:
         dataframe = pd.DataFrame()
 
+    for column in dataframe.columns:
+        if column.endswith("_id"):
+            options_id = column
 
-    return dataframe.head(), img_path
+    return dataframe.head(), img_path, gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_id)
 
 
 def get_data_segmentation(file):
@@ -153,7 +164,9 @@ def update_segmentation():
             options.append(column)
         elif column.endswith("_MDETR"):
             options.append(column)
-        elif column.endswith("_dino"):
+        elif column.endswith("_SwinT"):
+            options.append(column)
+        elif column.endswith("_SwinB"):
             options.append(column)
 
     return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options), img_path
@@ -257,23 +270,21 @@ def translate_titles(columns, language, progress=gr.Progress(track_tqdm=True)):
 
     return dataframe
 
-def preprocess(columns, ):
-    def preprocess_text(text):
-        if text is None:
-            return ''
-        text = text.lower()
-        text = text.replace('portrait of ', '')
-        text = text.replace('photograph of ', '')
-        text = text.replace('black and white photo of ', '')
-        text = text.replace('black and white photograph of ', '')
-        text = text.replace('black and white portrait of ', '')
-        text = text.replace('a group of','')
-        text = text.replace('group of','')
-        text = text.replace('canton of fribourg','')
-        text = text.replace('[fribourg]','')
-        text = text.replace('of fribourg','')
-        text = text.replace('fribourg','')
-        return text
+def preprocess(columns, elem_to_filter, casefolding):
+    def preprocess_text(text, elem_to_filter, casefolding):
+        try:
+            if casefolding == "Yes":
+                text = text.lower()
+
+            for elem in elem_to_filter:
+                text = text.replace(elem, '')
+
+            return text
+        except Exception as e:
+            print(e)
+            return text
+    
+
     global dataframe
     if dataframe is None:
         return "No dataframe loaded"
@@ -281,12 +292,15 @@ def preprocess(columns, ):
     if isinstance(columns, str):
         columns = [columns]
 
+    elem_to_filter = elem_to_filter.split(',')
+    elem_to_filter = [elem.strip().lower() if casefolding == "Yes" else elem.strip() for elem in elem_to_filter]
+
     for column in columns:
         # check that the column to translate exists
         assert column in dataframe.columns, f"Can't find the column {column}"
 
         # preprocess the data
-        dataframe[f'{column}_preprocessed'] = dataframe[column].progress_apply(lambda x: preprocess_text(x) if pd.notna(x) else '')
+        dataframe[f'{column}_preprocessed'] = dataframe[column].progress_apply(lambda x: preprocess_text(x, elem_to_filter, casefolding))
 
     return dataframe.head()
 
@@ -312,8 +326,8 @@ def run_phrase_grounding(algorithm, img_dir, caption_columns, device, box_thresh
     if algorithm == "MDETR":
         # dataframe = run_MDETR(dataframe, img_dir, caption_column, device)
         pass
-    elif algorithm == "Grounding DINO":
-        dataframe, data_columns = run_DINO(dataframe, img_dir, caption_columns, device, box_thresh, text_thresh, progress)
+    elif "DINO" in algorithm:
+        dataframe, data_columns = run_DINO(algorithm, dataframe, img_dir, caption_columns, device, box_thresh, text_thresh, progress)
 
 
     return dataframe.head(), visualize_dataframe(img_dir, 10, data_columns, ["Label", "Score", "Bounding box", "Segmentation"], 0.3, caption_columns)
@@ -328,8 +342,8 @@ def run_phrase_grounding_preview(algorithm, img_dir, caption_columns, device, bo
     if algorithm == "MDETR":
         # dataframe = run_MDETR(dataframe, img_dir, caption_column, device)
         pass
-    elif algorithm == "Grounding DINO":
-        demo_df, data_columns = run_DINO(demo_df, img_dir, caption_columns, device, box_thresh, text_thresh)
+    elif "DINO" in algorithm:
+        demo_df, data_columns = run_DINO(algorithm, demo_df, img_dir, caption_columns, device, box_thresh, text_thresh)
 
 
     return dataframe.head(), visualize_dataframe(img_dir, n_preview, data_columns, ["Label", "Score", "Bounding box", "Segmentation"], 0.3, caption_columns, demo_df)
@@ -567,9 +581,61 @@ def save_visualization():
 
 with gr.Blocks() as demo:
 
+    #------------------------ CAPTIONING ------------------------#
+
+    with gr.Tab("Captioning") as tab_captioning:
+
+        with gr.Column():
+
+            df = gr.DataFrame()
+
+            with gr.Row():
+
+                with gr.Column():
+                    upload_button = gr.UploadButton("Click to Upload the dataframe", type="file")
+                    upload_images_button = gr.UploadButton("Upload images in zip", type="file", file_types=["zip"])
+                    img_dir = gr.Text(img_path, label="Image directory", info="Path to the image directory")
+                    id_column = gr.Dropdown(label="ID column", multiselect=False, info="Select the column containing the ID of the image")
+                    #gr.Radio(["All", "324w", "2975h"], label="Quality", value="All", info="")
+                    get_image_names_button = gr.Button("Link filenames to dataframe")
+                    get_image_names_button.click(get_image_names, [img_dir, id_column], df)
+
+                with gr.Column():
+                    available_algorithms = ["blip_caption-base_coco", 
+                                            "blip2_opt-pretrain_opt2.7b",
+                                            "blip2_opt-pretrain_opt6.7b",
+                                            "blip2_opt-caption_coco_opt2.7b",
+                                            "blip2_opt-caption_coco_opt6.7b",
+                                            "blip2_t5-pretrain_flant5xl",
+                                            "blip2_t5-caption_coco_flant5xl",
+                                            "blip2_t5-pretrain_flant5xxl",
+                                            ]
+                    algorithm = gr.Dropdown(available_algorithms, label="Algorithm", multiselect=False, value="blip_caption-base_coco", info="Select the algorithm to use for captioning")
+                    # img_dir = gr.Text("demo/img/", label="Image directory", info="Path to the image directory")                   
+                    devices = ["cpu"]
+                    if torch.cuda.is_available():
+                        devices.append("cuda")
+                    device = gr.Radio(devices, label="Device", value="cuda" if torch.cuda.is_available() else "cpu", info="Device to use for inference")
+                    n_preview = gr.Slider(minimum=1, maximum=10, step=1, value=2, label="Number of previews", info="Number of previews to show")
+                    preview_button = gr.Button("Preview")
+                    run_button = gr.Button("Run")
+                    upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, img_dir])
+
+                upload_button.upload(get_data_captioning, upload_button, [df, id_column])
+
+                with gr.Column():
+                    save_directory = gr.Text("df_captioning.pkl", label="Save path", info="Path to save the captioned dataframe")
+                    save_button = gr.Button("Save")
+                    save_button.click(save_dataframe, save_directory, save_button)
+            
+            review_html = gr.HTML("")
+            preview_button.click(run_captioning_preview, [algorithm, img_dir, device, n_preview], review_html)
+            run_button.click(run_captioning, [algorithm, img_dir, device], [df, review_html])
+            tab_captioning.select(update_captioning, [], [df, img_dir, id_column])
+
     #------------------------ TRANSLATE ------------------------#
 
-    with gr.Tab("Translate") as tab_translate:
+    with gr.Tab("Translating") as tab_translate:
 
         with gr.Column():
 
@@ -600,54 +666,6 @@ with gr.Blocks() as demo:
 
             tab_translate.select(update_translate, [], [df, column_to_translate, nothing])
 
-    #------------------------ CAPTIONING ------------------------#
-
-    with gr.Tab("Captioning") as tab_captioning:
-
-        with gr.Column():
-
-            df = gr.DataFrame()
-
-            with gr.Row():
-
-                with gr.Column():
-                    upload_button = gr.UploadButton("Click to Upload the dataframe", type="file")
-                    upload_images_button = gr.UploadButton("Upload images in zip", type="file", file_types=["zip"])
-
-                with gr.Column():
-                    available_algorithms = ["blip_caption-base_coco", 
-                                            "blip2_opt-pretrain_opt2.7b",
-                                            "blip2_opt-pretrain_opt6.7b",
-                                            "blip2_opt-caption_coco_opt2.7b",
-                                            "blip2_opt-caption_coco_opt6.7b",
-                                            "blip2_t5-pretrain_flant5xl",
-                                            "blip2_t5-caption_coco_flant5xl",
-                                            "blip2_t5-pretrain_flant5xxl",
-                                            ]
-                    algorithm = gr.Dropdown(available_algorithms, label="Algorithm", multiselect=False, value="blip_caption-base_coco", info="Select the algorithm to use for captioning")
-                    img_dir = gr.Text("demo/img/", label="Image directory", info="Path to the image directory")                   
-                
-                with gr.Column():
-                    devices = ["cpu"]
-                    if torch.cuda.is_available():
-                        devices.append("cuda")
-                    device = gr.Radio(devices, label="Device", value="cuda" if torch.cuda.is_available() else "cpu", info="Device to use for inference")
-                    n_preview = gr.Slider(minimum=1, maximum=10, step=1, value=2, label="Number of previews", info="Number of previews to show")
-                    preview_button = gr.Button("Preview")
-                    run_button = gr.Button("Run")
-                    upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, img_dir])
-
-                upload_button.upload(get_data_captioning, upload_button, df)
-
-                with gr.Column():
-                    save_directory = gr.Text("df_captioning.pkl", label="Save path", info="Path to save the captioned dataframe")
-                    save_button = gr.Button("Save")
-                    save_button.click(save_dataframe, save_directory, save_button)
-            
-            review_html = gr.HTML("")
-            preview_button.click(run_captioning_preview, [algorithm, img_dir, device, n_preview], review_html)
-            run_button.click(run_captioning, [algorithm, img_dir, device], [df, review_html])
-            tab_captioning.select(update_captioning, [], [df, img_dir])
 
     # ------------------------- PREPROCESS ------------------------- #
 
@@ -665,25 +683,20 @@ with gr.Blocks() as demo:
 
                     with gr.Column():
                         column_to_preprocess = gr.Dropdown(label="Column(s) to preprocess", multiselect=True, info="Select the column(s) to preprocess")
-                        translate_button = gr.Button("Preprocess")
-                        translate_button.click(preprocess, column_to_preprocess, df)
-
-                    with gr.Column():
-                        img_dir = gr.Text("demo/img/", label="Image directory", info="Path to the image directory")
-                        id_column = gr.Dropdown(label="ID column", multiselect=False, info="Select the column containing the ID of the image")
-                        #gr.Radio(["All", "324w", "2975h"], label="Quality", value="All", info="")
-                        get_image_names_button = gr.Button("Get image names")
-                        get_image_names_button.click(get_image_names, [img_dir, id_column], df)
-                        upload_images_button.upload(upload_images, upload_images_button, [upload_images_button, img_dir])
+                        default_filter = "portrait of, photograph of, black and white photo of, black and white photograph of, black and white portrait of, a group of, group of"
+                        elem_to_filter = gr.TextArea(default_filter, label="Elements to filter", info="Elements to filter from the column(s) to preprocess, separated by a comma")
+                        casefolding = gr.Radio(["Yes", "No"], label="Casefolding", value="Yes", info="Apply casefolding to the column(s) to preprocess")
+                        preprocess_button = gr.Button("Preprocess")
+                        preprocess_button.click(preprocess, [column_to_preprocess, elem_to_filter, casefolding], df)
 
                     with gr.Column():
                         save_directory = gr.Text("df_preprocessed.pkl", label="Save path", info="Path to save the preprocessed dataframe")
                         save_button = gr.Button("Save")
                         save_button.click(save_dataframe, save_directory, save_button)
         
-                    upload_button.upload(get_data_preprocess, upload_button, [df, column_to_preprocess, id_column])
+                    upload_button.upload(get_data_preprocess, upload_button, [df, column_to_preprocess])
 
-            tab_preprocessing.select(update_preprocess, [], [df, column_to_preprocess, id_column, img_dir])
+            tab_preprocessing.select(update_preprocess, [], [df, column_to_preprocess, img_dir])
 
 
     # ------------------------- PHRASE GROUNDING ------------------------- #
@@ -701,15 +714,15 @@ with gr.Blocks() as demo:
                     upload_images_button = gr.UploadButton("Upload images in zip", type="file", file_types=["zip"])
 
                 with gr.Column():
-                    algorithm = gr.Dropdown(["Grounding DINO"], label="Algorithm", multiselect=False, value="Grounding DINO", info="Select the algorithm to use for phrase grounding")
+                    algorithm = gr.Dropdown(["groundingDINO-SwinB", "groundingDINO-SwinT"], label="Algorithm", multiselect=False, value="groundingDINO-SwinB", info="Select the algorithm to use for phrase grounding")
                     img_dir = gr.Text("demo/img/", label="Image directory", info="Path to the image directory")
                     caption_column = gr.Dropdown(label="Column for caption", multiselect=True, info="Select the column containing the caption to ground")
 
                    
                 
                 with gr.Column():
-                    box_thresh = gr.Slider(minimum=0, maximum=1, step=0.01, value=0.3, label="Box threshold")
-                    text_thresh = gr.Slider(minimum=0, maximum=1, step=0.01, value=0.3, label="Text threshold")
+                    box_thresh = gr.Slider(minimum=0, maximum=1, step=0.01, value=0.25, label="Box threshold")
+                    text_thresh = gr.Slider(minimum=0, maximum=1, step=0.01, value=0.25, label="Text threshold")
                     devices = ["cpu"]
                     if torch.cuda.is_available():
                         devices.append("cuda")
