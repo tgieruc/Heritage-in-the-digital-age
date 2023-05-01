@@ -147,9 +147,10 @@ def get_data_segmentation(file):
             options.append(column)
         elif column.endswith("_MDETR"):
             options.append(column)
-        elif column.endswith("_dino"):
+        elif column.endswith("SwinB"):
             options.append(column)
-
+        elif column.endswith("SwinT"):
+            options.append(column)
 
     return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options)
 
@@ -164,9 +165,9 @@ def update_segmentation():
             options.append(column)
         elif column.endswith("_MDETR"):
             options.append(column)
-        elif column.endswith("_SwinT"):
+        elif column.endswith("SwinB"):
             options.append(column)
-        elif column.endswith("_SwinB"):
+        elif column.endswith("SwinT"):
             options.append(column)
 
     return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options), img_path
