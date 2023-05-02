@@ -43,6 +43,8 @@ def run_DINO(algorithm, dataframe, image_directory, caption_columns, device, box
         CONFIG_PATH =  os.path.join(home_dir,"submodules/GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py")
         WEIGHTS_PATH = os.path.join(home_dir,"submodules/GroundingDINO/model/groundingdino_swint_ogc.pth")
         if not os.path.isfile(WEIGHTS_PATH):
+            if not os.path.isdir(os.path.join(home_dir,"submodules/GroundingDINO/model")):
+                os.mkdir(os.path.join(home_dir,"submodules/GroundingDINO/model"))
             print('Downloading GroundingDINO SwinT model weights...')
             os.system(f'wget https://github.com/IDEA-Research/GroundingDINO/releases/download/v0.1.0-alpha/groundingdino_swint_ogc.pth -O {WEIGHTS_PATH}')
 
