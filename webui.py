@@ -1,5 +1,7 @@
 import os
+import shutil
 import sys
+import zipfile
 from types import SimpleNamespace
 
 import cv2
@@ -8,12 +10,11 @@ import numpy as np
 import pandas as pd
 import supervision as sv
 import torch
-from tqdm import tqdm
-import shutil
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from lavis.models import load_model_and_preprocess
-import zipfile
 from PIL import Image
+from tqdm import tqdm
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+
 file_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(file_dir)
 sys.path.append(os.path.join(file_dir, "webui_helpers"))
@@ -60,8 +61,6 @@ def get_data_preprocess(file):
         options_preprocess.append("title_en")
     if "caption" in dataframe.columns:
         options_preprocess.append("caption")
-    
-
 
     return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_preprocess)
 
@@ -70,7 +69,6 @@ def update_preprocess():
     if dataframe is None:
         dataframe = pd.DataFrame()
     options_preprocess = []
-
 
     for column in dataframe.columns:
         if column.endswith("_en"):
@@ -85,7 +83,6 @@ def update_preprocess():
 
             options_preprocess.append(column)
     
-
     return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_preprocess),  img_path
 
 def get_data_phrase_grounding(file):
@@ -112,7 +109,6 @@ def update_phrase_grounding():
 
     return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options), img_path
 
-
 def get_data_captioning(file):
     global dataframe
     dataframe = pd.read_pickle(file.name)
@@ -123,6 +119,7 @@ def get_data_captioning(file):
             options_id = column
 
     return dataframe.head(), gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_id)
+
 def update_captioning():
     global dataframe
     global img_path
@@ -136,7 +133,6 @@ def update_captioning():
             options_id = column
 
     return dataframe.head(), img_path, gr.Dropdown.update(choices=dataframe.columns.tolist(), value=options_id)
-
 
 def get_data_segmentation(file):
     global dataframe
@@ -330,9 +326,7 @@ def run_phrase_grounding(algorithm, img_dir, caption_columns, device, box_thresh
     elif "DINO" in algorithm:
         dataframe, data_columns = run_DINO(algorithm, dataframe, img_dir, caption_columns, device, box_thresh, text_thresh, progress)
 
-
     return dataframe.head(), visualize_dataframe(img_dir, 10, data_columns, ["Label", "Score", "Bounding box", "Segmentation"], 0.3, caption_columns)
-
 
 def run_phrase_grounding_preview(algorithm, img_dir, caption_columns, device, box_thresh, text_thresh, n_preview):
     global dataframe
@@ -354,6 +348,7 @@ def caption_once(row, model, vis_processors, img_dir, device):
         img = Image.open(os.path.join(img_dir, row['filename']))
         img = img.convert('RGB')
         img = vis_processors["eval"](img).unsqueeze(0).to(device)
+
         return model.generate({"image": img})[0]
 
 def run_captioning(algorithm, img_dir, device, progress=gr.Progress(track_tqdm=True)):
@@ -387,7 +382,6 @@ def run_captioning_preview(algorithm, img_dir, device, n_preview, progress=gr.Pr
     demo_df[f"caption_{algorithm}"] = demo_df.progress_apply(lambda x: caption_once(x, model, vis_processors, img_dir, device), axis=1)
 
     return demo_df.head().to_html()
-
 
 def run_segmentation(algorithm, img_dir, detection_columns, device, progress=gr.Progress(track_tqdm=True)):
     global dataframe
@@ -432,17 +426,6 @@ def link_labels_to_colors(labels):
     return colors
 
 def apply_mask(image, mask, color, alpha=0.3):
-    """Apply the given mask to the image.
-
-    Args:
-        image (numpy.ndarray): The image to apply the mask to.
-        mask (numpy.ndarray): The mask to apply to the image.
-        color (list or tuple): The color to use for the mask.
-        alpha (float, optional): The transparency of the mask. Default is 0.3.
-
-    Returns:
-        numpy.ndarray: The image with the applied mask.
-    """
     for c in range(3):
         image[:, :, c] = np.where(mask == 1,
                                   image[:, :, c] *
@@ -565,7 +548,6 @@ def visualize_dataframe(img_dir, num_imgs, data_columns, visu_selection, fontsca
     html += "</div>"
 
     return gr.HTML.update(html)
-
 
 def save_visualization():
     last_folder = get_latest_temp_folder()
